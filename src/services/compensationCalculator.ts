@@ -1,4 +1,4 @@
-import { getYear } from 'date-fns';
+import { getYear, getMonth } from 'date-fns';
 import { CompensationData, RSUGrant, BonusConfig, YearlyProjection } from '../types';
 import { exchangeRateService } from './exchangeRateService';
 
@@ -42,19 +42,25 @@ export class CompensationCalculator {
         // Calculate RSU vesting for this year
         const rsuVest = this.calculateRSUVestingForYear(data.rsuGrants, year, data.stockPrice);
 
+        // Convert RSU vesting to base currency
+        const rsuVestInBaseCurrency = data.baseCurrency === data.rsuCurrency
+            ? rsuVest
+            : rsuVest * exchangeRate;
+
         // Total compensation in USD (or RSU currency)
         const totalComp = baseSalary + bonus + rsuVest;
 
         // Convert to base currency if different
         const totalCompInBaseCurrency = data.baseCurrency === data.rsuCurrency
             ? totalComp
-            : baseSalary + bonus + (rsuVest * exchangeRate);
+            : baseSalary + bonus + rsuVestInBaseCurrency;
 
         return {
             year,
             baseSalary,
             bonus,
             rsuVest,
+            rsuVestInBaseCurrency,
             totalComp,
             totalCompInBaseCurrency
         };
@@ -85,7 +91,9 @@ export class CompensationCalculator {
 
     private calculateRSUVestingForYear(grants: RSUGrant[], year: number, currentStockPrice: number): number {
         let totalVesting = 0;
+        const currentYear = new Date().getFullYear();
 
+        // Process existing grants
         for (const grant of grants) {
             const grantYear = getYear(grant.grantDate);
             const yearsFromGrant = year - grantYear;
@@ -99,11 +107,69 @@ export class CompensationCalculator {
             }
         }
 
+        // For future years, project continuation of the most recent grant pattern
+        if (grants.length > 0 && year > currentYear) {
+            // Find the most recent grant
+            const mostRecentGrant = grants.reduce((latest, grant) =>
+                getYear(grant.grantDate) > getYear(latest.grantDate) ? grant : latest
+            );
+
+            // Assume a new grant of the same size is given each year starting from currentYear + 1
+            for (let futureGrantYear = currentYear + 1; futureGrantYear <= year; futureGrantYear++) {
+                const yearsFromFutureGrant = year - futureGrantYear;
+
+                // Only calculate vesting if this future grant would be vesting in the target year
+                if (yearsFromFutureGrant >= 0 && yearsFromFutureGrant < mostRecentGrant.vestingPattern.schedule.length) {
+                    const vestingPercentage = mostRecentGrant.vestingPattern.schedule[yearsFromFutureGrant];
+                    const sharesVesting = (mostRecentGrant.totalShares * vestingPercentage) / 100;
+                    const vestingValue = sharesVesting * currentStockPrice;
+                    totalVesting += vestingValue;
+                }
+            }
+        }
+
         return totalVesting;
     }
 
     calculateTotalGrantValue(grant: RSUGrant, currentStockPrice: number): number {
         return grant.totalShares * currentStockPrice;
+    }
+
+    // Check if a grant has vested based on current date and vesting schedule
+    hasGrantVested(grant: RSUGrant, vestingSchedule: number[], targetYear?: number, targetMonth?: number): boolean {
+        const currentDate = new Date();
+        const checkYear = targetYear || currentDate.getFullYear();
+        const checkMonth = targetMonth || currentDate.getMonth() + 1; // getMonth() returns 0-11
+
+        const grantYear = getYear(grant.grantDate);
+        const grantMonth = getMonth(grant.grantDate) + 1; // getMonth() returns 0-11
+
+        // Grant hasn't started yet
+        if (checkYear < grantYear) return false;
+
+        // Grant is fully vested (4+ years past grant)
+        if (checkYear >= grantYear + grant.vestingPattern.schedule.length) return true;
+
+        // For the grant year and subsequent years, check if we've passed any vesting dates
+        const yearsFromGrant = checkYear - grantYear;
+
+        if (yearsFromGrant < 0) return false;
+        if (yearsFromGrant >= grant.vestingPattern.schedule.length) return true;
+
+        // Check if we've passed the vesting dates for this year
+        // For quarterly vesting, we need to check if current date is past the quarterly vesting date
+        const targetVestingYear = grantYear + yearsFromGrant;
+
+        if (checkYear > targetVestingYear) return true;
+        if (checkYear < targetVestingYear) return false;
+
+        // Same year as vesting year - check if we've passed the first vesting month for this year
+        const vestingMonthsThisYear = vestingSchedule.filter(month => month >= grantMonth || yearsFromGrant > 0);
+
+        if (vestingMonthsThisYear.length === 0) return false;
+
+        const firstVestingMonth = Math.min(...vestingMonthsThisYear);
+        return checkMonth >= firstVestingMonth;
     }
 
     calculateRemainingValue(grant: RSUGrant, currentStockPrice: number, currentYear: number): number {
@@ -143,6 +209,7 @@ export class CompensationCalculator {
             rsuCurrency: 'USD',
             stockPrice: 350,
             company: 'Meta',
+            vestingSchedule: [2, 5, 8, 11], // Meta's default: Feb, May, Aug, Nov
             bonusConfigs: [
                 { percentage: 15, year: currentYear, performanceMultiplier: 1.0 }
             ],

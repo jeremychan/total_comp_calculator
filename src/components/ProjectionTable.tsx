@@ -33,7 +33,8 @@ const ProjectionTable: React.FC<ProjectionTableProps> = ({
                         <th>Year</th>
                         <th>Base</th>
                         <th>Bonus</th>
-                        <th>RSU</th>
+                        <th>RSU ({rsuCurrency})</th>
+                        <th>RSU ({baseCurrency})</th>
                         <th>Total</th>
                     </tr>
                 </thead>
@@ -47,6 +48,7 @@ const ProjectionTable: React.FC<ProjectionTableProps> = ({
                             <td>{formatCurrency(projection.baseSalary, baseSymbol)}</td>
                             <td>{formatCurrency(projection.bonus, baseSymbol)}</td>
                             <td>{formatCurrency(projection.rsuVest, rsuSymbol)}</td>
+                            <td>{formatCurrency(projection.rsuVestInBaseCurrency, baseSymbol)}</td>
                             <td className="fw-bold">
                                 {formatCurrency(projection.totalCompInBaseCurrency, baseSymbol)}
                             </td>
@@ -64,6 +66,9 @@ const ProjectionTable: React.FC<ProjectionTableProps> = ({
                         </td>
                         <td className="fw-bold">
                             {formatCurrency(projections.reduce((sum, p) => sum + p.rsuVest, 0), rsuSymbol)}
+                        </td>
+                        <td className="fw-bold">
+                            {formatCurrency(projections.reduce((sum, p) => sum + p.rsuVestInBaseCurrency, 0), baseSymbol)}
                         </td>
                         <td className="fw-bold text-success">
                             {formatCurrency(projections.reduce((sum, p) => sum + p.totalCompInBaseCurrency, 0), baseSymbol)}

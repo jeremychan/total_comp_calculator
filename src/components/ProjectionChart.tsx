@@ -160,6 +160,7 @@ const ProjectionChart: React.FC<ProjectionChartProps> = ({ projections, baseCurr
                             dataKey="totalCompLine"
                             stroke="#dc3545"
                             strokeWidth={3}
+                            strokeDasharray="5 5"
                             dot={{ fill: '#dc3545', strokeWidth: 2, r: 6 }}
                             activeDot={{ r: 8 }}
                         />

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Form, Button, Row, Col, Card, Badge } from 'react-bootstrap';
 import { getYear } from 'date-fns';
-import { BonusConfig, COMPANIES } from '../types';
+import { BonusConfig } from '../types';
 
 interface BonusConfigurationProps {
     bonusConfigs: BonusConfig[];
@@ -20,7 +20,6 @@ const BonusConfiguration: React.FC<BonusConfigurationProps> = ({
         performanceMultiplier: 1.0
     });
 
-    const companyInfo = COMPANIES.find(c => c.name === company);
     const currentYear = getYear(new Date());
 
     const addBonusConfig = () => {
@@ -72,24 +71,7 @@ const BonusConfiguration: React.FC<BonusConfigurationProps> = ({
                 </div>
             </div>
 
-            {/* Quick Set Common Values */}
-            {companyInfo && (
-                <div className="mb-3">
-                    <Form.Label className="small">Quick set common values for {company}:</Form.Label>
-                    <div className="d-flex flex-wrap gap-1">
-                        {companyInfo.commonBonusPercentages.map(percentage => (
-                            <Button
-                                key={percentage}
-                                variant="outline-secondary"
-                                size="sm"
-                                onClick={() => setNewConfig(prev => ({ ...prev, percentage }))}
-                            >
-                                {percentage}%
-                            </Button>
-                        ))}
-                    </div>
-                </div>
-            )}
+
 
             {/* Add New Configuration */}
             <Card className="mb-3">
@@ -133,22 +115,23 @@ const BonusConfiguration: React.FC<BonusConfigurationProps> = ({
                         </Col>
                         <Col md={4}>
                             <Form.Group className="mb-2">
-                                <Form.Label className="small">Performance Multiplier</Form.Label>
-                                <Form.Select
+                                <Form.Label className="small">Performance Multiplier (optional)</Form.Label>
+                                <Form.Control
+                                    type="number"
                                     size="sm"
-                                    value={newConfig.performanceMultiplier || 1.0}
+                                    value={newConfig.performanceMultiplier || ''}
                                     onChange={(e) => setNewConfig(prev => ({
                                         ...prev,
-                                        performanceMultiplier: parseFloat(e.target.value)
+                                        performanceMultiplier: e.target.value ? parseFloat(e.target.value) : 1.0
                                     }))}
-                                >
-                                    <option value={0.8}>0.8 (Below Expectations)</option>
-                                    <option value={1.0}>1.0 (Meets Expectations)</option>
-                                    <option value={1.1}>1.1 (Exceeds)</option>
-                                    <option value={1.2}>1.2 (Greatly Exceeds)</option>
-                                    <option value={1.3}>1.3 (Redefines)</option>
-                                    <option value={1.5}>1.5 (Outstanding)</option>
-                                </Form.Select>
+                                    placeholder="1.0"
+                                    min={0.1}
+                                    max={5.0}
+                                    step={0.1}
+                                />
+                                <Form.Text className="text-muted">
+                                    Decimal number (e.g., 1.2 for 20% above target)
+                                </Form.Text>
                             </Form.Group>
                         </Col>
                     </Row>

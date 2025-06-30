@@ -10,6 +10,9 @@ interface RSUManagerProps {
     company: string;
     stockPrice: number;
     currency: string;
+    baseCurrency: string;
+    exchangeRate: number;
+    vestingSchedule: number[];
     onChange: (rsuGrants: RSUGrant[]) => void;
 }
 
@@ -18,6 +21,9 @@ const RSUManager: React.FC<RSUManagerProps> = ({
     company,
     stockPrice,
     currency,
+    baseCurrency,
+    exchangeRate,
+    vestingSchedule,
     onChange
 }) => {
     const [showAddModal, setShowAddModal] = useState(false);
@@ -30,7 +36,9 @@ const RSUManager: React.FC<RSUManagerProps> = ({
     });
 
     const currencyInfo = CURRENCIES.find(c => c.code === currency);
+    const baseCurrencyInfo = CURRENCIES.find(c => c.code === baseCurrency);
     const symbol = currencyInfo?.symbol || currency;
+    const baseSymbol = baseCurrencyInfo?.symbol || baseCurrency;
     const currentYear = getYear(new Date());
 
     const formatCurrency = (amount: number): string => {
@@ -127,6 +135,13 @@ const RSUManager: React.FC<RSUManagerProps> = ({
 
         if (yearsFromGrant < 0) return { status: 'Not Started', variant: 'secondary' };
         if (yearsFromGrant >= grant.vestingPattern.schedule.length) return { status: 'Fully Vested', variant: 'success' };
+
+        // Check if current year portion has vested based on vesting schedule
+        const hasCurrentYearVested = compensationCalculator.hasGrantVested(grant, vestingSchedule);
+        if (hasCurrentYearVested && yearsFromGrant === 0) {
+            return { status: 'Vested this Year', variant: 'info' };
+        }
+
         return { status: `Vesting (Year ${yearsFromGrant + 1})`, variant: 'primary' };
     };
 
@@ -183,7 +198,8 @@ const RSUManager: React.FC<RSUManagerProps> = ({
                         <tr>
                             <th>Grant Date</th>
                             <th>Shares</th>
-                            <th>Current Value</th>
+                            <th>Current Value ({currency})</th>
+                            <th>Value ({baseCurrency})</th>
                             <th>Vesting Pattern</th>
                             <th>Status</th>
                             <th>Actions</th>
@@ -203,6 +219,12 @@ const RSUManager: React.FC<RSUManagerProps> = ({
                                         <div>{symbol}{formatCurrency(totalValue)}</div>
                                         <small className="text-muted">
                                             Remaining: {symbol}{formatCurrency(remainingValue)}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <div>{baseSymbol}{formatCurrency(totalValue * exchangeRate)}</div>
+                                        <small className="text-muted">
+                                            Remaining: {baseSymbol}{formatCurrency(remainingValue * exchangeRate)}
                                         </small>
                                     </td>
                                     <td>

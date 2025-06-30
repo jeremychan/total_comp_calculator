@@ -10,6 +10,7 @@ import { exchangeRateService } from './services/exchangeRateService';
 
 import CompanySelector from './components/CompanySelector';
 import CurrencySelector from './components/CurrencySelector';
+import VestingScheduleSelector from './components/VestingScheduleSelector';
 import SalaryConfiguration from './components/SalaryConfiguration';
 import BonusConfiguration from './components/BonusConfiguration';
 import RSUManager from './components/RSUManager';
@@ -50,6 +51,12 @@ function App() {
           }];
         }
 
+        // Migrate legacy data to include vesting schedule if missing
+        if (!decodedData.vestingSchedule) {
+          const companyInfo = COMPANIES.find(c => c.name === decodedData.company);
+          decodedData.vestingSchedule = companyInfo?.defaultVestingSchedule || [3, 6, 9, 12];
+        }
+
         // Clean up URL
         window.history.replaceState({}, document.title, window.location.pathname);
         return { compensationData: decodedData, isSharedData: true };
@@ -76,6 +83,12 @@ function App() {
             year: new Date().getFullYear(),
             isHistorical: false
           }];
+        }
+
+        // Migrate legacy data to include vesting schedule if missing
+        if (!parsed.vestingSchedule) {
+          const companyInfo = COMPANIES.find(c => c.name === parsed.company);
+          parsed.vestingSchedule = companyInfo?.defaultVestingSchedule || [3, 6, 9, 12];
         }
 
         return { compensationData: parsed, isSharedData: false };
@@ -206,21 +219,27 @@ function App() {
     setCompensationData(prev => {
       const newData = { ...prev, ...updates };
 
-      // If company changed, update default bonus percentage
+      // If company changed, update default bonus percentage and vesting schedule
       if (updates.company && updates.company !== prev.company) {
         const companyInfo = COMPANIES.find(c => c.name === updates.company);
-        if (companyInfo && (!prev.bonusConfigs.length || prev.bonusConfigs.every(bc => bc.year !== currentYear))) {
-          // Only set default if no current year bonus is configured
-          // Use the most common bonus percentage (usually the first one) as default
-          const defaultBonusPercentage = companyInfo.commonBonusPercentages[0] || 15;
-          newData.bonusConfigs = [
-            ...prev.bonusConfigs.filter(bc => bc.year !== currentYear),
-            {
-              percentage: defaultBonusPercentage,
-              year: currentYear,
-              performanceMultiplier: 1.0
-            }
-          ];
+        if (companyInfo) {
+          // Set default vesting schedule
+          newData.vestingSchedule = companyInfo.defaultVestingSchedule;
+
+          // Set default bonus percentage if none configured for current year
+          if (!prev.bonusConfigs.length || prev.bonusConfigs.every(bc => bc.year !== currentYear)) {
+            // Only set default if no current year bonus is configured
+            // Use the most common bonus percentage (usually the first one) as default
+            const defaultBonusPercentage = companyInfo.commonBonusPercentages[0] || 15;
+            newData.bonusConfigs = [
+              ...prev.bonusConfigs.filter(bc => bc.year !== currentYear),
+              {
+                percentage: defaultBonusPercentage,
+                year: currentYear,
+                performanceMultiplier: 1.0
+              }
+            ];
+          }
         }
       }
 
@@ -437,6 +456,11 @@ function App() {
                   onBaseCurrencyChange={(baseCurrency) => updateCompensationData({ baseCurrency })}
                   onRsuCurrencyChange={(rsuCurrency) => updateCompensationData({ rsuCurrency })}
                 />
+                <hr />
+                <VestingScheduleSelector
+                  vestingSchedule={compensationData.vestingSchedule || []}
+                  onChange={(vestingSchedule) => updateCompensationData({ vestingSchedule })}
+                />
                 {compensationData.baseCurrency !== compensationData.rsuCurrency && (
                   <>
                     <hr />
@@ -512,6 +536,9 @@ function App() {
                   company={compensationData.company}
                   stockPrice={compensationData.stockPrice}
                   currency={compensationData.rsuCurrency}
+                  baseCurrency={compensationData.baseCurrency}
+                  exchangeRate={exchangeRate}
+                  vestingSchedule={compensationData.vestingSchedule || []}
                   onChange={(rsuGrants) => updateCompensationData({ rsuGrants })}
                 />
               </Card.Body>
