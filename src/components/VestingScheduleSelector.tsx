@@ -39,9 +39,13 @@ const VestingScheduleSelector: React.FC<VestingScheduleSelectorProps> = ({
                 {months.map(month => (
                     <Badge
                         key={month.num}
-                        bg={vestingSchedule.includes(month.num) ? 'primary' : 'outline-secondary'}
+                        bg={vestingSchedule.includes(month.num) ? 'primary' : 'secondary'}
                         className="cursor-pointer user-select-none"
-                        style={{ cursor: 'pointer', fontSize: '0.75rem' }}
+                        style={{
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            opacity: vestingSchedule.includes(month.num) ? 1 : 0.5
+                        }}
                         onClick={() => toggleMonth(month.num)}
                     >
                         {month.name}

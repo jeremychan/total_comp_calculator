@@ -40,14 +40,20 @@ const ProjectionChart: React.FC<ProjectionChartProps> = ({ projections, baseCurr
     // Prepare chart data - memoized to prevent unnecessary re-renders
     const chartData = useMemo(() => {
         if (!projections || projections.length === 0) return [];
-        return projections.map(p => ({
-            year: p.year.toString(),
-            'Base Salary': Math.round(p.baseSalary),
-            'Bonus': Math.round(p.bonus),
-            'RSU Vesting': Math.round(p.rsuVest),
-            'Total Comp': Math.round(p.totalCompInBaseCurrency),
-            totalCompLine: Math.round(p.totalCompInBaseCurrency)
-        }));
+        const currentYear = new Date().getFullYear();
+        return projections.map(p => {
+            // Don't show data if base salary is 0 or undefined
+            const hasBaseSalary = p.baseSalary > 0;
+            return {
+                year: p.year.toString(),
+                'Base Salary': hasBaseSalary ? Math.round(p.baseSalary) : null,
+                'Bonus': hasBaseSalary ? Math.round(p.bonus) : null,
+                'RSU Vesting': hasBaseSalary ? Math.round(p.rsuVest) : null,
+                'Total Comp': hasBaseSalary ? Math.round(p.totalCompInBaseCurrency) : null,
+                totalCompHistorical: (hasBaseSalary && p.year <= currentYear) ? Math.round(p.totalCompInBaseCurrency) : null,
+                totalCompFuture: (hasBaseSalary && p.year >= currentYear) ? Math.round(p.totalCompInBaseCurrency) : null
+            };
+        });
     }, [projections]);
 
     const yAxisMax = useMemo(() => {
@@ -72,7 +78,7 @@ const ProjectionChart: React.FC<ProjectionChartProps> = ({ projections, baseCurr
                         })}
                         <hr className="my-2" />
                         <p className="fw-bold mb-0">
-                            Total: {formatTooltipValue(payload.find((p: any) => p.dataKey === 'Total Comp')?.value || 0)}
+                            Total: {formatTooltipValue(payload.find((p: any) => p.dataKey === 'totalCompLine')?.value || 0)}
                         </p>
                     </div>
                 );
@@ -152,17 +158,30 @@ const ProjectionChart: React.FC<ProjectionChartProps> = ({ projections, baseCurr
                         <XAxis dataKey="year" />
                         <YAxis tickFormatter={formatCurrency} domain={[0, yAxisMax]} />
                         <Tooltip
-                            formatter={(value: number) => [formatTooltipValue(value), 'Total Compensation']}
+                            formatter={(value: number, name: string) => {
+                                if (value === null) return [null, null];
+                                return [formatTooltipValue(value), 'Total Compensation'];
+                            }}
                             labelFormatter={(label) => `Year: ${label}`}
                         />
                         <Line
                             type="monotone"
-                            dataKey="totalCompLine"
+                            dataKey="totalCompHistorical"
+                            stroke="#dc3545"
+                            strokeWidth={3}
+                            dot={{ fill: '#dc3545', strokeWidth: 2, r: 6 }}
+                            activeDot={{ r: 8 }}
+                            connectNulls={false}
+                        />
+                        <Line
+                            type="monotone"
+                            dataKey="totalCompFuture"
                             stroke="#dc3545"
                             strokeWidth={3}
                             strokeDasharray="5 5"
                             dot={{ fill: '#dc3545', strokeWidth: 2, r: 6 }}
                             activeDot={{ r: 8 }}
+                            connectNulls={false}
                         />
                     </LineChart>
                 </ResponsiveContainer>

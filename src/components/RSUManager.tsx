@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Form, Button, Row, Col, Card, Table, Badge, Modal } from 'react-bootstrap';
-import { format, getYear } from 'date-fns';
+import { format, getYear, getMonth } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { RSUGrant, VESTING_PATTERNS, COMPANIES, CURRENCIES } from '../types';
 import { compensationCalculator } from '../services/compensationCalculator';
@@ -129,18 +129,70 @@ const RSUManager: React.FC<RSUManagerProps> = ({
         setNewGrant(prev => ({ ...prev, customVestingSchedule: schedule }));
     };
 
+    const calculateVestedValue = (grant: RSUGrant): { vestedValue: number; vestedPercentage: number; vestedShares: number } => {
+        const grantYear = getYear(grant.grantDate);
+        const grantMonth = getMonth(grant.grantDate) + 1; // getMonth() returns 0-11
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth() + 1;
+        const yearsFromGrant = currentYear - grantYear;
+
+        if (yearsFromGrant < 0) return { vestedValue: 0, vestedPercentage: 0, vestedShares: 0 }; // Grant hasn't started
+
+        if (yearsFromGrant >= grant.vestingPattern.schedule.length) {
+            // Fully vested
+            return {
+                vestedValue: grant.totalShares * stockPrice,
+                vestedPercentage: 100,
+                vestedShares: grant.totalShares
+            };
+        }
+
+        // Calculate how many quarters have vested
+        let totalQuartersVested = 0;
+
+        // Add fully completed years (each year = 4 quarters)
+        for (let i = 0; i < yearsFromGrant; i++) {
+            totalQuartersVested += 4;
+        }
+
+        // For the current vesting year, check how many quarters have passed
+        if (yearsFromGrant < grant.vestingPattern.schedule.length) {
+            const vestingMonthsThisYear = vestingSchedule.filter(month => {
+                // For the grant year, only count months after the grant month
+                if (yearsFromGrant === 0) {
+                    return month >= grantMonth;
+                }
+                // For subsequent years, count all vesting months
+                return true;
+            });
+
+            // Count how many vesting months have passed this year
+            const passedVestingMonths = vestingMonthsThisYear.filter(month => {
+                if (currentYear > grantYear + yearsFromGrant) return true; // Future years, all months passed
+                if (currentYear < grantYear + yearsFromGrant) return false; // Past years relative to current year
+                return month <= currentMonth; // Same year, check if month has passed
+            });
+
+            totalQuartersVested += passedVestingMonths.length;
+        }
+
+        // Each grant typically vests over 4 years = 16 quarters
+        const totalQuarters = grant.vestingPattern.schedule.length * 4;
+        const quarterlyPercentage = 100 / totalQuarters;
+        const vestedPercentage = Math.min(totalQuartersVested * quarterlyPercentage, 100);
+
+        const vestedShares = (grant.totalShares * vestedPercentage) / 100;
+        const vestedValue = vestedShares * stockPrice;
+
+        return { vestedValue, vestedPercentage, vestedShares };
+    };
+
     const getGrantStatus = (grant: RSUGrant): { status: string; variant: string } => {
         const grantYear = getYear(grant.grantDate);
         const yearsFromGrant = currentYear - grantYear;
 
         if (yearsFromGrant < 0) return { status: 'Not Started', variant: 'secondary' };
         if (yearsFromGrant >= grant.vestingPattern.schedule.length) return { status: 'Fully Vested', variant: 'success' };
-
-        // Check if current year portion has vested based on vesting schedule
-        const hasCurrentYearVested = compensationCalculator.hasGrantVested(grant, vestingSchedule);
-        if (hasCurrentYearVested && yearsFromGrant === 0) {
-            return { status: 'Vested this Year', variant: 'info' };
-        }
 
         return { status: `Vesting (Year ${yearsFromGrant + 1})`, variant: 'primary' };
     };
@@ -153,11 +205,61 @@ const RSUManager: React.FC<RSUManagerProps> = ({
         sum + compensationCalculator.calculateRemainingValue(grant, stockPrice, currentYear), 0
     );
 
+
+
+    const getUpcomingVests = () => {
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth() + 1;
+        const nextVestingMonth = vestingSchedule.find(month => month > currentMonth) ||
+            (vestingSchedule.length > 0 ? vestingSchedule[0] : null);
+
+        if (!nextVestingMonth) return { shares: 0, value: 0, grants: [], month: null };
+
+        let totalShares = 0;
+        const grantsInfo: { grantDate: Date; shares: number; percentage: number }[] = [];
+
+        rsuGrants.forEach(grant => {
+            const grantYear = getYear(grant.grantDate);
+            const grantMonth = getMonth(grant.grantDate) + 1;
+            const yearsFromGrant = currentYear - grantYear;
+
+            // Check if this grant will vest in the upcoming vesting period
+            if (yearsFromGrant >= 0 && yearsFromGrant < grant.vestingPattern.schedule.length) {
+                // Only include if the next vesting month is valid for this grant
+                const isValidVestingMonth = yearsFromGrant === 0 ?
+                    nextVestingMonth >= grantMonth : true;
+
+                if (isValidVestingMonth) {
+                    // Each quarter vests 1/16 of total shares (4 years * 4 quarters = 16 quarters)
+                    const totalQuarters = grant.vestingPattern.schedule.length * 4;
+                    const quarterlyPercentage = 100 / totalQuarters;
+                    const quarterlyShares = (grant.totalShares * quarterlyPercentage) / 100;
+
+                    totalShares += quarterlyShares;
+                    grantsInfo.push({
+                        grantDate: grant.grantDate,
+                        shares: quarterlyShares,
+                        percentage: quarterlyPercentage
+                    });
+                }
+            }
+        });
+
+        return {
+            shares: totalShares,
+            value: totalShares * stockPrice,
+            grants: grantsInfo,
+            month: nextVestingMonth
+        };
+    };
+
+    const upcomingVest = getUpcomingVests();
+
     return (
         <div>
             {/* Summary Cards */}
             <Row className="mb-3">
-                <Col md={4}>
+                <Col md={3}>
                     <Card className="text-center">
                         <Card.Body>
                             <h6 className="text-muted">Total Grants</h6>
@@ -165,7 +267,7 @@ const RSUManager: React.FC<RSUManagerProps> = ({
                         </Card.Body>
                     </Card>
                 </Col>
-                <Col md={4}>
+                <Col md={3}>
                     <Card className="text-center">
                         <Card.Body>
                             <h6 className="text-muted">Portfolio Value</h6>
@@ -173,11 +275,28 @@ const RSUManager: React.FC<RSUManagerProps> = ({
                         </Card.Body>
                     </Card>
                 </Col>
-                <Col md={4}>
+                <Col md={3}>
                     <Card className="text-center">
                         <Card.Body>
                             <h6 className="text-muted">Remaining Unvested</h6>
                             <h4>{symbol}{formatCurrency(totalRemainingValue)}</h4>
+                        </Card.Body>
+                    </Card>
+                </Col>
+                <Col md={3}>
+                    <Card className="text-center h-100" style={{ cursor: 'help' }}>
+                        <Card.Body
+                            title={upcomingVest.grants.map(g =>
+                                `${formatDate(g.grantDate)}: ${g.shares.toFixed(0)} shares (${g.percentage.toFixed(1)}%)`
+                            ).join('\n')}
+                        >
+                            <h6 className="text-muted">Next Vest</h6>
+                            <h4>{symbol}{formatCurrency(upcomingVest.value)}</h4>
+                            <small className="text-muted">
+                                {upcomingVest.shares.toFixed(0)} shares
+                                {upcomingVest.month && ` in ${['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][upcomingVest.month]}`}
+                            </small>
                         </Card.Body>
                     </Card>
                 </Col>
@@ -198,9 +317,9 @@ const RSUManager: React.FC<RSUManagerProps> = ({
                         <tr>
                             <th>Grant Date</th>
                             <th>Shares</th>
-                            <th>Current Value ({currency})</th>
-                            <th>Value ({baseCurrency})</th>
-                            <th>Vesting Pattern</th>
+                            <th>Vested ({currency})</th>
+                            <th>Remaining Value ({currency})</th>
+                            <th>Current Value ({baseCurrency})</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
@@ -208,30 +327,31 @@ const RSUManager: React.FC<RSUManagerProps> = ({
                     <tbody>
                         {rsuGrants.sort((a, b) => b.grantDate.getTime() - a.grantDate.getTime()).map((grant) => {
                             const status = getGrantStatus(grant);
-                            const totalValue = compensationCalculator.calculateTotalGrantValue(grant, stockPrice);
                             const remainingValue = compensationCalculator.calculateRemainingValue(grant, stockPrice, currentYear);
+                            const vestedInfo = calculateVestedValue(grant);
+                            const remainingShares = grant.totalShares - vestedInfo.vestedShares;
 
                             return (
                                 <tr key={grant.id}>
                                     <td>{formatDate(grant.grantDate)}</td>
                                     <td>{grant.totalShares.toLocaleString()}</td>
                                     <td>
-                                        <div>{symbol}{formatCurrency(totalValue)}</div>
+                                        <div>{symbol}{formatCurrency(vestedInfo.vestedValue)}</div>
                                         <small className="text-muted">
-                                            Remaining: {symbol}{formatCurrency(remainingValue)}
+                                            {vestedInfo.vestedPercentage.toFixed(1)}% vested
                                         </small>
                                     </td>
                                     <td>
-                                        <div>{baseSymbol}{formatCurrency(totalValue * exchangeRate)}</div>
+                                        <div>{symbol}{formatCurrency(remainingValue)}</div>
                                         <small className="text-muted">
-                                            Remaining: {baseSymbol}{formatCurrency(remainingValue * exchangeRate)}
+                                            {remainingShares.toFixed(0)} shares remaining
                                         </small>
                                     </td>
                                     <td>
-                                        <small>{grant.vestingPattern.name}</small>
-                                        <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                                            {grant.vestingPattern.schedule.join('%, ')}%
-                                        </div>
+                                        <div>{baseSymbol}{formatCurrency(remainingValue * exchangeRate)}</div>
+                                        <small className="text-muted">
+                                            {remainingShares.toFixed(0)} shares remaining
+                                        </small>
                                     </td>
                                     <td>
                                         <Badge bg={status.variant}>{status.status}</Badge>

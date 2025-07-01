@@ -104,6 +104,7 @@ function App() {
   const [exchangeRate, setExchangeRate] = useState<number>(1);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [showEditWarning, setShowEditWarning] = useState(false);
+  const [expandedSummaryCard, setExpandedSummaryCard] = useState<string | null>(null);
 
   const currentYear = getYear(new Date());
   // Removed projectionYears - now using fixed range
@@ -343,6 +344,27 @@ function App() {
         {projections.length > 0 && (() => {
           // Find current year projection (index 4 since we start 4 years ago)
           const currentYearProjection = projections.find(p => p.year === currentYear) || projections[4];
+
+          // Calculate bonus details for tooltip
+          const currentBonusConfig = compensationData.bonusConfigs
+            .filter(config => config.year <= currentYear)
+            .sort((a, b) => b.year - a.year)[0] || { percentage: 15, performanceMultiplier: 1.0 };
+
+          const bonusCalculation = `${currentYearProjection?.baseSalary.toLocaleString()} × ${currentBonusConfig.percentage}% × ${currentBonusConfig.performanceMultiplier}`;
+
+          // Calculate RSU vesting details for tooltip
+          const rsuVestingDetails = compensationData.rsuGrants.map(grant => {
+            const grantYear = getYear(grant.grantDate);
+            const yearsFromGrant = currentYear - grantYear;
+            if (yearsFromGrant >= 0 && yearsFromGrant < grant.vestingPattern.schedule.length) {
+              const vestingPercentage = grant.vestingPattern.schedule[yearsFromGrant];
+              const sharesVesting = (grant.totalShares * vestingPercentage) / 100;
+              const vestingValue = sharesVesting * compensationData.stockPrice;
+              return `${grant.grantDate.getFullYear()}: ${sharesVesting.toFixed(0)} shares (${vestingPercentage}%) = ${(CURRENCIES.find(c => c.code === compensationData.rsuCurrency)?.symbol) || ''}${vestingValue.toLocaleString()}`;
+            }
+            return null;
+          }).filter(Boolean).join('\n');
+
           return currentYearProjection ? (
             <Row className="mb-4">
               <Col>
@@ -367,11 +389,40 @@ function App() {
                       </div>
                       <div className="col-md-3">
                         <h6 className="text-light">Bonus</h6>
-                        <h5>{(CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}{currentYearProjection?.bonus.toLocaleString()}</h5>
+                        <h5
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setExpandedSummaryCard(expandedSummaryCard === 'bonus' ? null : 'bonus')}
+                        >
+                          {(CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}{currentYearProjection?.bonus.toLocaleString()}
+                          <i className={`bi bi-chevron-${expandedSummaryCard === 'bonus' ? 'up' : 'down'} ms-1`} style={{ fontSize: '0.8rem' }}></i>
+                        </h5>
+                        {expandedSummaryCard === 'bonus' && (
+                          <div className="mt-2 p-2 bg-white bg-opacity-10 rounded">
+                            <small className="text-light">
+                              {bonusCalculation}
+                            </small>
+                          </div>
+                        )}
                       </div>
                       <div className="col-md-3">
                         <h6 className="text-light">RSU Vesting</h6>
-                        <h5>{(CURRENCIES.find(c => c.code === compensationData.rsuCurrency)?.symbol) || ''}{currentYearProjection?.rsuVest.toLocaleString()}</h5>
+                        <h5
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setExpandedSummaryCard(expandedSummaryCard === 'rsu' ? null : 'rsu')}
+                        >
+                          {(CURRENCIES.find(c => c.code === compensationData.rsuCurrency)?.symbol) || ''}{currentYearProjection?.rsuVest.toLocaleString()}
+                          <i className={`bi bi-chevron-${expandedSummaryCard === 'rsu' ? 'up' : 'down'} ms-1`} style={{ fontSize: '0.8rem' }}></i>
+                        </h5>
+                        <div className="small text-light mt-1">
+                          ({(CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}{currentYearProjection?.rsuVestInBaseCurrency.toLocaleString()})
+                        </div>
+                        {expandedSummaryCard === 'rsu' && (
+                          <div className="mt-2 p-2 bg-white bg-opacity-10 rounded">
+                            <small className="text-light" style={{ whiteSpace: 'pre-line' }}>
+                              {rsuVestingDetails || 'No RSU vesting this year'}
+                            </small>
+                          </div>
+                        )}
                       </div>
                       <div className="col-md-3">
                         <h6 className="text-light">Year</h6>
@@ -593,6 +644,8 @@ function App() {
                   projections={projections}
                   baseCurrency={compensationData.baseCurrency}
                   rsuCurrency={compensationData.rsuCurrency}
+                  rsuGrants={compensationData.rsuGrants}
+                  stockPrice={compensationData.stockPrice}
                 />
               </Card.Body>
             </Card>
