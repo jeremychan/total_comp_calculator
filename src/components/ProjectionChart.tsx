@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
     BarChart,
     Bar,
@@ -19,6 +19,18 @@ interface ProjectionChartProps {
 const ProjectionChart: React.FC<ProjectionChartProps> = ({ projections, baseCurrency }) => {
     const currencyInfo = CURRENCIES.find(c => c.code === baseCurrency);
     const symbol = currencyInfo?.symbol || baseCurrency;
+
+    // Mobile detection
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const formatCurrency = useMemo(() => {
         return (value: number): string => {
@@ -43,15 +55,27 @@ const ProjectionChart: React.FC<ProjectionChartProps> = ({ projections, baseCurr
             // Don't show data if base salary is 0 or undefined
             const hasBaseSalary = p.baseSalary > 0;
             const isPredicted = p.year > currentYear;
+
+            // Format year based on mobile/desktop
+            let yearLabel;
+            if (isMobile) {
+                // Show last 2 digits on mobile
+                const shortYear = p.year.toString().slice(-2);
+                yearLabel = isPredicted ? `${shortYear}*` : shortYear;
+            } else {
+                // Show full year on desktop
+                yearLabel = isPredicted ? `${p.year}*` : p.year.toString();
+            }
+
             return {
-                year: p.year.toString(),
+                year: yearLabel,
                 'Base Salary': hasBaseSalary ? Math.round(p.baseSalary) : null,
                 'Bonus': hasBaseSalary ? Math.round(p.bonus) : null,
                 'RSU Vesting': hasBaseSalary ? Math.round(p.rsuVestInBaseCurrency) : null,
                 'Total Comp': hasBaseSalary ? Math.round(p.totalCompInBaseCurrency) : null
             };
         });
-    }, [projections]);
+    }, [projections, isMobile]);
 
     const yAxisMax = useMemo(() => {
         if (!projections || projections.length === 0) return 100000;
@@ -133,26 +157,9 @@ const ProjectionChart: React.FC<ProjectionChartProps> = ({ projections, baseCurr
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis
                             dataKey="year"
-                            tick={({ x, y, payload }) => {
-                                const currentYear = new Date().getFullYear();
-                                const year = parseInt(payload.value);
-                                const isPredicted = year > currentYear;
-
-                                return (
-                                    <g transform={`translate(${x},${y})`}>
-                                        <text x={0} y={0} dy={16} textAnchor="middle" fill="#666" fontSize="12">
-                                            {year}
-                                        </text>
-                                        {isPredicted && (
-                                            <text x={0} y={14} dy={16} textAnchor="middle" fill="#999" fontSize="10">
-                                                (predicted)
-                                            </text>
-                                        )}
-                                    </g>
-                                );
-                            }}
+                            tick={{ fontSize: 12, fill: '#666' }}
                             interval={0}
-                            height={60}
+                            height={40}
                         />
                         <YAxis tickFormatter={formatCurrency} domain={[0, yAxisMax]} />
                         <Tooltip content={CustomTooltip} />
@@ -164,7 +171,15 @@ const ProjectionChart: React.FC<ProjectionChartProps> = ({ projections, baseCurr
                 </ResponsiveContainer>
             </div>
 
-
+            {/* Legend for predicted years */}
+            {projections.some(p => p.year > new Date().getFullYear()) && (
+                <div className="mb-3">
+                    <small className="text-muted">
+                        <i className="bi bi-info-circle me-1"></i>
+                        * Predicted years based on current configuration
+                    </small>
+                </div>
+            )}
 
             {/* Summary Statistics */}
             <div className="row">

@@ -347,12 +347,14 @@ function App() {
               <Col>
                 <div className="card border-0 shadow-sm" style={{ background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)' }}>
                   <div className="card-body py-3">
-                    <div className="d-flex justify-content-between align-items-center mb-3">
-                      <h5 className="mb-0 text-dark">
-                        <i className="bi bi-trophy me-2 text-warning"></i>
-                        Total Compensation {currentYearProjection?.year}
-                      </h5>
-                      <div className="d-flex gap-2">
+                    <div className="position-relative mb-3">
+                      <div className="text-center">
+                        <h5 className="mb-0 text-dark">
+                          <i className="bi bi-trophy me-2 text-warning"></i>
+                          Total Compensation {currentYearProjection?.year}
+                        </h5>
+                      </div>
+                      <div className="position-absolute top-0 end-0 d-flex gap-2">
                         <button
                           className="btn btn-outline-primary btn-sm"
                           onClick={shareData}
@@ -389,10 +391,30 @@ function App() {
                       <div className="col-6 col-md-3">
                         <div className="small text-muted">Bonus</div>
                         <div className="fw-bold">{(CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}{currentYearProjection?.bonus.toLocaleString()}</div>
+                        <div className="small text-muted mt-1">
+                          {bonusCalculation}
+                        </div>
                       </div>
                       <div className="col-6 col-md-3">
                         <div className="small text-muted">RSU Vesting</div>
-                        <div className="fw-bold">{(CURRENCIES.find(c => c.code === compensationData.rsuCurrency)?.symbol) || ''}{currentYearProjection?.rsuVest.toLocaleString()}</div>
+                        <div
+                          className="fw-bold"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setExpandedSummaryCard(expandedSummaryCard === 'rsu' ? null : 'rsu')}
+                        >
+                          {(CURRENCIES.find(c => c.code === compensationData.rsuCurrency)?.symbol) || ''}{currentYearProjection?.rsuVest.toLocaleString()}
+                          <i className={`bi bi-chevron-${expandedSummaryCard === 'rsu' ? 'up' : 'down'} ms-1`} style={{ fontSize: '0.8rem' }}></i>
+                        </div>
+                        <div className="small text-muted mt-1">
+                          ({(CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}{currentYearProjection?.rsuVestInBaseCurrency.toLocaleString()})
+                        </div>
+                        {expandedSummaryCard === 'rsu' && (
+                          <div className="mt-2 p-2 bg-light rounded border">
+                            <small className="text-muted" style={{ whiteSpace: 'pre-line' }}>
+                              {rsuVestingDetails || 'No RSU vesting this year'}
+                            </small>
+                          </div>
+                        )}
                       </div>
                       <div className="col-6 col-md-3">
                         <div className="small text-muted">Currency</div>
