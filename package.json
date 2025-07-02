@@ -29,7 +29,9 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "fetch-stock-data": "node scripts/fetch-stock-data.js",
+    "setup-env": "cp config.env.example config.env && echo '# Edit this file and add your Alpha Vantage API key' >> config.env"
   },
   "eslintConfig": {
     "extends": [

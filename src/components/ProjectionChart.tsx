@@ -48,7 +48,7 @@ const ProjectionChart: React.FC<ProjectionChartProps> = ({ projections, baseCurr
                 year: p.year.toString(),
                 'Base Salary': hasBaseSalary ? Math.round(p.baseSalary) : null,
                 'Bonus': hasBaseSalary ? Math.round(p.bonus) : null,
-                'RSU Vesting': hasBaseSalary ? Math.round(p.rsuVest) : null,
+                'RSU Vesting': hasBaseSalary ? Math.round(p.rsuVestInBaseCurrency) : null,
                 'Total Comp': hasBaseSalary ? Math.round(p.totalCompInBaseCurrency) : null,
                 totalCompHistorical: (hasBaseSalary && p.year <= currentYear) ? Math.round(p.totalCompInBaseCurrency) : null,
                 totalCompFuture: (hasBaseSalary && p.year >= currentYear) ? Math.round(p.totalCompInBaseCurrency) : null
@@ -78,7 +78,11 @@ const ProjectionChart: React.FC<ProjectionChartProps> = ({ projections, baseCurr
                         })}
                         <hr className="my-2" />
                         <p className="fw-bold mb-0">
-                            Total: {formatTooltipValue(payload.find((p: any) => p.dataKey === 'totalCompLine')?.value || 0)}
+                            Total: {formatTooltipValue(
+                                payload
+                                    .filter((p: any) => ['Base Salary', 'Bonus', 'RSU Vesting'].includes(p.dataKey))
+                                    .reduce((sum: number, p: any) => sum + (p.value || 0), 0)
+                            )}
                         </p>
                     </div>
                 );

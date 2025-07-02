@@ -35,7 +35,7 @@ const StockPriceInput: React.FC<StockPriceInputProps> = ({ value, currency, comp
 
     const fetchStockPrice = useCallback(async () => {
         const stockSymbol = getStockSymbol(company);
-        console.log(`Fetching stock price for ${stockSymbol}...`);
+        console.log(`Loading stock price for ${stockSymbol} from local data...`);
         setLoading(true);
         setError(null);
 
@@ -44,20 +44,24 @@ const StockPriceInput: React.FC<StockPriceInputProps> = ({ value, currency, comp
             console.log('Stock price data received:', data);
             if (data) {
                 setStockData(data);
-                setError(null); // Clear any previous errors
+                if (data.price === 0) {
+                    setError(`No data available for ${stockSymbol} - please enter price manually`);
+                } else {
+                    setError(null);
+                }
             } else {
-                setError('Unable to fetch stock price - using manual input');
+                setError(`Unable to load ${stockSymbol} data - please enter price manually`);
                 setStockData(null);
             }
         } catch (err) {
-            console.log('Stock price fetch error:', err);
-            setError('API unavailable - using fallback prices');
+            console.log('Stock price load error:', err);
+            setError(`Data unavailable for ${stockSymbol} - please enter price manually`);
             setStockData(null);
         } finally {
-            console.log('Stock price fetch completed');
+            console.log('Stock price load completed');
             setLoading(false);
         }
-    }, [company]); // Remove onChange dependency to prevent infinite loops
+    }, [company]);
 
     // Auto-fetch on company change
     useEffect(() => {
@@ -66,9 +70,9 @@ const StockPriceInput: React.FC<StockPriceInputProps> = ({ value, currency, comp
         }
     }, [company, fetchStockPrice]);
 
-    // Update parent component when stock data changes
+    // Update parent component when stock data changes (only for valid prices)
     useEffect(() => {
-        if (stockData && !error) {
+        if (stockData && !error && stockData.price > 0) {
             onChange(stockData.price);
         }
     }, [stockData, error, onChange]);
@@ -84,6 +88,16 @@ const StockPriceInput: React.FC<StockPriceInputProps> = ({ value, currency, comp
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
+    };
+
+    const getDataSourceLabel = (): string => {
+        if (error || (stockData && stockData.price === 0)) {
+            return 'No historical data';
+        }
+        if (stockData) {
+            return 'From local data';
+        }
+        return 'Manual input';
     };
 
     return (
@@ -103,7 +117,7 @@ const StockPriceInput: React.FC<StockPriceInputProps> = ({ value, currency, comp
                     variant="outline-primary"
                     onClick={fetchStockPrice}
                     disabled={loading}
-                    title={`Fetch live ${getStockSymbol(company)} stock price`}
+                    title={`Load ${getStockSymbol(company)} stock price from local data`}
                 >
                     {loading ? (
                         <Spinner size="sm" animation="border" />
@@ -113,47 +127,25 @@ const StockPriceInput: React.FC<StockPriceInputProps> = ({ value, currency, comp
                 </Button>
             </InputGroup>
 
-            {stockData && (
-                <div className="d-flex justify-content-between align-items-center mt-2">
-                    <Form.Text className={error ? "text-warning" : "text-success"}>
-                        <i className={`bi ${error ? 'bi-exclamation-triangle' : 'bi-check-circle'} me-1`}></i>
-                        {error ? 'Fallback' : 'Live'} {stockData.symbol}: {symbol}{formatNumber(stockData.price)}
-                        <span className={`ms-2 ${stockData.change >= 0 ? 'text-success' : 'text-danger'}`}>
-                            {stockData.change >= 0 ? '+' : ''}{stockData.change.toFixed(2)}
-                            ({stockData.changePercent.toFixed(2)}%)
-                        </span>
-                        {error && <small className="text-muted ms-2">(Demo prices)</small>}
-                    </Form.Text>
-                    <small className="text-muted">
-                        {error ? 'Fallback data' : `Updated: ${stockData.lastUpdated.toLocaleTimeString()}`}
-                    </small>
-                </div>
-            )}
-
-            {error && !stockData && (
+            {error && (
                 <Alert variant="warning" className="mt-2 mb-0 py-2">
-                    <small>{error}. Using manual input.</small>
+                    <small>
+                        <i className="bi bi-exclamation-triangle me-1"></i>
+                        {error}
+                    </small>
                 </Alert>
             )}
 
-            {!stockData && !error && (
+            {!stockData && !error && !loading && (
                 <Form.Text className="text-muted">
                     Current price: {symbol}{formatNumber(value)} per share
                     <span className="ms-2">
-                        <Button variant="link" size="sm" onClick={fetchStockPrice} disabled={loading}>
-                            {loading ? 'Fetching...' : 'Fetch live price'}
+                        <Button variant="link" size="sm" onClick={fetchStockPrice} className="p-0">
+                            Load from data
                         </Button>
                     </span>
                 </Form.Text>
             )}
-
-            {/* Debug info - remove this later */}
-            <div className="mt-1">
-                <small className="text-muted">
-                    Status: {loading ? 'Loading...' : stockData ? 'Data loaded' : error ? 'Error state' : 'No data'}
-                    {stockData && ` | Price: ${stockData.price}`}
-                </small>
-            </div>
         </Form.Group>
     );
 };

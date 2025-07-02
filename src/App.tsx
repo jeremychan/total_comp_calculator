@@ -17,6 +17,7 @@ import RSUManager from './components/RSUManager';
 import StockPriceInput from './components/StockPriceInput';
 import ProjectionChart from './components/ProjectionChart';
 import ProjectionTable from './components/ProjectionTable';
+import StockPriceChart from './components/StockPriceChart';
 import ExchangeRateDisplay from './components/ExchangeRateDisplay';
 
 function App() {
@@ -123,12 +124,13 @@ function App() {
       rsuGrants: (compensationData.rsuGrants || []).map(g => ({
         id: g.id,
         totalShares: g.totalShares,
-        grantDate: g.grantDate?.getTime() || Date.now(), // Use timestamp for consistency
+        grantDate: g.grantDate?.getTime() || 0, // Use 0 instead of Date.now() for stability
         vestingPattern: g.vestingPattern
       })),
       stockPrice: compensationData.stockPrice || 0,
       baseCurrency: compensationData.baseCurrency || 'USD',
-      rsuCurrency: compensationData.rsuCurrency || 'USD'
+      rsuCurrency: compensationData.rsuCurrency || 'USD',
+      vestingSchedule: compensationData.vestingSchedule || []
     };
     return JSON.stringify(data);
   }, [compensationData]);
@@ -646,11 +648,37 @@ function App() {
                   rsuCurrency={compensationData.rsuCurrency}
                   rsuGrants={compensationData.rsuGrants}
                   stockPrice={compensationData.stockPrice}
+                  company={compensationData.company}
+                  vestingSchedule={compensationData.vestingSchedule || []}
                 />
               </Card.Body>
             </Card>
           </Col>
         </Row>
+
+        {/* Stock Price History */}
+        {compensationData.rsuGrants.length > 0 && (
+          <Row className="mb-4">
+            <Col>
+              <Card>
+                <Card.Header>
+                  <h5 className="mb-0">
+                    <i className="bi bi-graph-up-arrow me-2"></i>
+                    Stock Price History & Vesting Events
+                  </h5>
+                </Card.Header>
+                <Card.Body>
+                  <StockPriceChart
+                    company={compensationData.company}
+                    currency={compensationData.rsuCurrency}
+                    rsuGrants={compensationData.rsuGrants}
+                    vestingSchedule={compensationData.vestingSchedule || []}
+                  />
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        )}
 
         {/* Footer */}
         <Row className="mt-5">

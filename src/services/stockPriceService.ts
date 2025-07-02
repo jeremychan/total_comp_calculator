@@ -6,85 +6,184 @@ interface StockPrice {
     lastUpdated: Date;
 }
 
-class StockPriceService {
-    private cache: Map<string, { data: StockPrice; timestamp: number }> = new Map();
-    private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+interface HistoricalStockData {
+    [date: string]: {
+        "1. open": string;
+        "2. high": string;
+        "3. low": string;
+        "4. close": string;
+        "5. volume": string;
+    };
+}
 
-    async fetchStockPrice(symbol: string): Promise<StockPrice | null> {
+interface StockDataFile {
+    "Meta Data": {
+        "1. Information": string;
+        "2. Symbol": string;
+        "3. Last Refreshed": string;
+        "4. Time Zone": string;
+    };
+    "Monthly Time Series": HistoricalStockData;
+}
+
+class StockPriceService {
+    private cache: Map<string, StockDataFile> = new Map();
+
+    // Map company names to stock symbols and file names
+    private getStockSymbol(companyName: string): string {
+        const symbolMap: { [key: string]: string } = {
+            'Meta': 'META',
+            'Apple': 'AAPL',
+            'Google': 'GOOGL',
+            'Amazon': 'AMZN',
+            'Microsoft': 'MSFT',
+            'Tesla': 'TSLA',
+            'Netflix': 'NFLX',
+            'NVIDIA': 'NVDA'
+        };
+        return symbolMap[companyName] || 'META';
+    }
+
+    async loadStockData(symbol: string): Promise<StockDataFile | null> {
         try {
             // Check cache first
-            const cached = this.cache.get(symbol);
-            if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-                return cached.data;
+            if (this.cache.has(symbol)) {
+                return this.cache.get(symbol)!;
             }
 
-            // Try Yahoo Finance API, but expect it to fail due to CORS
-            let stockData = await this.fetchFromYahoo(symbol);
-
-            if (stockData) {
-                this.cache.set(symbol, { data: stockData, timestamp: Date.now() });
-                return stockData;
+            // Load from local file
+            const response = await fetch(`/data/${symbol}.json`);
+            if (!response.ok) {
+                console.warn(`No data file found for ${symbol}, using fallback`);
+                return null;
             }
 
-            // If API fails, use fallback prices with a note
-            console.log('Using fallback stock price due to API restrictions');
-            stockData = this.getFallbackPrice(symbol);
-            this.cache.set(symbol, { data: stockData, timestamp: Date.now() });
-            return stockData;
+            const data: StockDataFile = await response.json();
+            this.cache.set(symbol, data);
+            return data;
         } catch (error) {
-            console.error('Error fetching stock price:', error);
-            // Always return fallback data instead of null
-            const fallbackData = this.getFallbackPrice(symbol);
-            this.cache.set(symbol, { data: fallbackData, timestamp: Date.now() });
-            return fallbackData;
+            console.error(`Error loading stock data for ${symbol}:`, error);
+            return null;
         }
     }
 
-    private async fetchFromYahoo(symbol: string): Promise<StockPrice | null> {
+    async fetchStockPrice(symbol: string): Promise<StockPrice | null> {
         try {
-            // Direct Yahoo API (will likely fail due to CORS in browser)
-            const directUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`;
-
-            const response = await fetch(directUrl, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+            const data = await this.loadStockData(symbol);
+            if (!data) {
+                // Return fallback price if no data file available
+                return this.getFallbackPrice(symbol);
             }
 
-            const data = await response.json();
+            // Get the most recent price from the data
+            const monthlyData = data["Monthly Time Series"];
+            const dates = Object.keys(monthlyData).sort().reverse(); // Most recent first
 
-            if (data.chart && data.chart.result && data.chart.result[0]) {
-                const result = data.chart.result[0];
-                const meta = result.meta;
-                const currentPrice = meta.regularMarketPrice || meta.previousClose;
-                const previousClose = meta.previousClose;
-                const change = currentPrice - previousClose;
-                const changePercent = (change / previousClose) * 100;
-
-                return {
-                    symbol: symbol.toUpperCase(),
-                    price: currentPrice,
-                    change,
-                    changePercent,
-                    lastUpdated: new Date()
-                };
+            if (dates.length === 0) {
+                return this.getFallbackPrice(symbol);
             }
-            throw new Error('Invalid API response format');
+
+            const latestDate = dates[0];
+            const latestPrice = parseFloat(monthlyData[latestDate]["4. close"]);
+
+            // Calculate change from previous month if available
+            let change = 0;
+            let changePercent = 0;
+            if (dates.length > 1) {
+                const previousPrice = parseFloat(monthlyData[dates[1]]["4. close"]);
+                change = latestPrice - previousPrice;
+                changePercent = (change / previousPrice) * 100;
+            }
+
+            return {
+                symbol: symbol.toUpperCase(),
+                price: latestPrice,
+                change,
+                changePercent,
+                lastUpdated: new Date(latestDate)
+            };
         } catch (error) {
-            console.log(`Yahoo API failed for ${symbol}: ${error}`);
-            // Don't return fallback here - let the caller handle it
-            throw error;
+            console.error('Error fetching stock price:', error);
+            return this.getFallbackPrice(symbol);
         }
+    }
+
+    async getHistoricalPrice(symbol: string, year: number, month: number): Promise<number> {
+        try {
+            const data = await this.loadStockData(symbol);
+            if (!data) {
+                console.warn(`No historical data available for ${symbol}, returning 0`);
+                return 0;
+            }
+
+            const monthlyData = data["Monthly Time Series"];
+
+            // Try to find the exact month first
+            let targetDate = this.findClosestDate(monthlyData, year, month);
+
+            if (targetDate && monthlyData[targetDate]) {
+                return parseFloat(monthlyData[targetDate]["4. close"]);
+            }
+
+            console.warn(`No historical price found for ${symbol} at ${year}-${month}, returning 0`);
+            return 0;
+        } catch (error) {
+            console.error(`Error getting historical price for ${symbol}:`, error);
+            return 0;
+        }
+    }
+
+    private findClosestDate(monthlyData: HistoricalStockData, year: number, month: number): string | null {
+        const dates = Object.keys(monthlyData);
+
+        // Try exact month first
+        const targetMonthStr = month.toString().padStart(2, '0');
+        let exactMatch = dates.find(date => {
+            const [dateYear, dateMonth] = date.split('-');
+            return dateYear === year.toString() && dateMonth === targetMonthStr;
+        });
+
+        if (exactMatch) return exactMatch;
+
+        // Try to find the closest date in the same year and month
+        const sameYearMonth = dates.filter(date => {
+            const [dateYear, dateMonth] = date.split('-');
+            return dateYear === year.toString() && dateMonth === targetMonthStr;
+        });
+
+        if (sameYearMonth.length > 0) {
+            return sameYearMonth.sort().reverse()[0]; // Latest date in that month
+        }
+
+        // Try to find closest month in the same year
+        const sameYear = dates.filter(date => {
+            const [dateYear] = date.split('-');
+            return dateYear === year.toString();
+        }).sort();
+
+        if (sameYear.length > 0) {
+            // Find the closest month
+            let closest = sameYear[0];
+            let closestDiff = Math.abs(parseInt(sameYear[0].split('-')[1]) - month);
+
+            for (const date of sameYear) {
+                const dateMonth = parseInt(date.split('-')[1]);
+                const diff = Math.abs(dateMonth - month);
+                if (diff < closestDiff) {
+                    closest = date;
+                    closestDiff = diff;
+                }
+            }
+            return closest;
+        }
+
+        return null;
     }
 
     private getFallbackPrice(symbol: string): StockPrice {
         // Fallback prices for demo purposes (should be reasonably current)
         const fallbackPrices: { [key: string]: { price: number; change: number } } = {
-            'META': { price: 350, change: 5.25 },
+            'META': { price: 738, change: 5.25 },
             'AAPL': { price: 175, change: 2.10 },
             'GOOGL': { price: 140, change: 1.85 },
             'AMZN': { price: 155, change: 3.20 },
@@ -94,13 +193,13 @@ class StockPriceService {
             'NVDA': { price: 900, change: 15.20 }
         };
 
-        const fallback = fallbackPrices[symbol] || { price: 100, change: 0 };
+        const fallback = fallbackPrices[symbol] || { price: 0, change: 0 };
 
         return {
             symbol: symbol.toUpperCase(),
             price: fallback.price,
             change: fallback.change,
-            changePercent: (fallback.change / fallback.price) * 100,
+            changePercent: fallback.price > 0 ? (fallback.change / fallback.price) * 100 : 0,
             lastUpdated: new Date()
         };
     }
