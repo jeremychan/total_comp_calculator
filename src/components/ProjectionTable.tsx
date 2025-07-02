@@ -205,7 +205,7 @@ const ProjectionTable: React.FC<ProjectionTableProps> = ({
                         <th>Base</th>
                         <th>Bonus</th>
                         <th>RSU ({rsuCurrency})</th>
-                        <th>RSU ({baseCurrency})</th>
+                        {rsuCurrency !== baseCurrency && <th>RSU ({baseCurrency})</th>}
                         <th>Total</th>
                     </tr>
                 </thead>
@@ -238,7 +238,9 @@ const ProjectionTable: React.FC<ProjectionTableProps> = ({
                                         </span>
                                     </OverlayTrigger>
                                 </td>
-                                <td style={isFutureYear ? { color: '#6c757d' } : {}}>{formatCurrency(projection.rsuVestInBaseCurrency, baseSymbol)}</td>
+                                {rsuCurrency !== baseCurrency && (
+                                    <td style={isFutureYear ? { color: '#6c757d' } : {}}>{formatCurrency(projection.rsuVestInBaseCurrency, baseSymbol)}</td>
+                                )}
                                 <td className="fw-bold" style={isFutureYear ? { color: '#6c757d' } : {}}>
                                     {formatCurrency(projection.totalCompInBaseCurrency, baseSymbol)}
                                 </td>

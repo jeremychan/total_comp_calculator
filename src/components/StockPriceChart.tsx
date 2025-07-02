@@ -112,8 +112,11 @@ const StockPriceChart: React.FC<StockPriceChartProps> = ({
                         // Get historical price for the grant date
                         const grantPrice = await stockPriceService.getHistoricalPrice(stockSymbol, grantYear, grantMonth);
 
+                        // Format grant date to match stock data (first day of the month)
+                        const grantMonthDate = format(new Date(grantYear, grantMonth - 1, 1), 'yyyy-MM-dd');
+
                         events.push({
-                            date: format(grant.grantDate, 'yyyy-MM-dd'),
+                            date: grantMonthDate,
                             price: grantPrice > 0 ? grantPrice : grant.grantPrice, // Use historical price or fallback to grant price
                             shares: grant.totalShares,
                             grantDate: grant.grantDate
@@ -239,22 +242,26 @@ const StockPriceChart: React.FC<StockPriceChartProps> = ({
                     />
 
                     {/* Vertical lines for grant events */}
-                    {grantEvents.map((event, index) => (
-                        <ReferenceLine
-                            key={`${event.date}-${index}`}
-                            x={event.date}
-                            stroke="#3b82f6"
-                            strokeWidth={2}
-                            strokeDasharray="4 4"
-                            label={{
-                                value: formatCurrency(event.price),
-                                offset: 10,
-                                fontSize: 12,
-                                fill: "#3b82f6",
-                                fontWeight: "bold"
-                            }}
-                        />
-                    ))}
+                    {grantEvents.map((event, index) => {
+                        console.log('Rendering grant event:', event, 'Chart data sample:', stockData.slice(0, 2));
+                        return (
+                            <ReferenceLine
+                                key={`grant-${index}`}
+                                x={event.date}
+                                stroke="#dc3545"
+                                strokeWidth={4}
+                                strokeDasharray="10 5"
+                                label={{
+                                    value: `Grant: ${formatCurrency(event.price)}`,
+                                    position: "top",
+                                    offset: 15,
+                                    fontSize: 12,
+                                    fill: "#dc3545",
+                                    fontWeight: "bold"
+                                }}
+                            />
+                        );
+                    })}
                 </LineChart>
             </ResponsiveContainer>
 
@@ -267,8 +274,8 @@ const StockPriceChart: React.FC<StockPriceChartProps> = ({
                             style={{
                                 width: '20px',
                                 height: '2px',
-                                background: '#3b82f6',
-                                border: '1px dashed #3b82f6'
+                                background: '#dc3545',
+                                border: '1px dashed #dc3545'
                             }}
                         ></div>
                         <small className="text-muted">RSU Grant Events</small>

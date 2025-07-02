@@ -17,6 +17,7 @@ const StockPriceInput: React.FC<StockPriceInputProps> = ({ value, currency, comp
     const [stockData, setStockData] = useState<StockPrice | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [inputValue, setInputValue] = useState(value.toString());
 
     // Map company names to stock symbols
     const getStockSymbol = (companyName: string): string => {
@@ -74,12 +75,30 @@ const StockPriceInput: React.FC<StockPriceInputProps> = ({ value, currency, comp
     useEffect(() => {
         if (stockData && !error && stockData.price > 0) {
             onChange(stockData.price);
+            setInputValue(stockData.price.toString());
         }
     }, [stockData, error, onChange]);
 
+    // Sync input value with prop value when it changes externally
+    useEffect(() => {
+        setInputValue(value.toString());
+    }, [value]);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const numValue = parseFloat(e.target.value) || 0;
-        onChange(numValue);
+        const newValue = e.target.value;
+        setInputValue(newValue);
+
+        // Only update parent if the value is a valid number
+        if (newValue === '' || newValue === '.') {
+            // Allow empty input or just a decimal point
+            return;
+        }
+
+        const numValue = parseFloat(newValue);
+        if (!isNaN(numValue) && numValue >= 0) {
+            onChange(numValue);
+        }
+
         setStockData(null); // Clear fetched data when manually edited
     };
 
@@ -107,7 +126,7 @@ const StockPriceInput: React.FC<StockPriceInputProps> = ({ value, currency, comp
                 <InputGroup.Text>{symbol}</InputGroup.Text>
                 <Form.Control
                     type="number"
-                    value={value}
+                    value={inputValue}
                     onChange={handleChange}
                     placeholder="Enter current stock price"
                     min="0"

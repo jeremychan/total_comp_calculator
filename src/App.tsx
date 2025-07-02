@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Container, Row, Col, Card, Alert, Modal, Button } from 'react-bootstrap';
+import { Container, Row, Col, Card, Alert, Modal, Button, Form } from 'react-bootstrap';
 import { getYear } from 'date-fns';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
@@ -106,6 +106,8 @@ function App() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [showEditWarning, setShowEditWarning] = useState(false);
   const [expandedSummaryCard, setExpandedSummaryCard] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
 
   const currentYear = getYear(new Date());
   // Removed projectionYears - now using fixed range
@@ -289,17 +291,27 @@ function App() {
         }))
       };
       const encoded = btoa(JSON.stringify(dataToShare));
-      const shareUrl = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
-
-      navigator.clipboard.writeText(shareUrl).then(() => {
-        alert('Share URL copied to clipboard!');
-      }).catch(() => {
-        // Fallback - show the URL in a prompt
-        prompt('Copy this URL to share your compensation data:', shareUrl);
-      });
+      const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+      setShareUrl(url);
+      setShowShareModal(true);
     } catch (error) {
       alert('Error creating share URL: ' + error);
     }
+  };
+
+  const copyShareUrl = () => {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      alert('Share URL copied to clipboard!');
+    }).catch(() => {
+      // Fallback - select the text
+      const textArea = document.createElement('textarea');
+      textArea.value = shareUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('Share URL copied to clipboard!');
+    });
   };
 
 
@@ -314,7 +326,7 @@ function App() {
               <div className="text-center">
                 <h1 className="mb-2">
                   <i className="bi bi-calculator me-2"></i>
-                  Total Compensation Calculator
+                  Tech Company Total Compensation Calculator
                 </h1>
                 <p className="text-muted mb-0">
                   Track your total compensation including base salary, bonus, and RSU vesting across multiple years
@@ -391,20 +403,10 @@ function App() {
                       </div>
                       <div className="col-md-3">
                         <h6 className="text-light">Bonus</h6>
-                        <h5
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => setExpandedSummaryCard(expandedSummaryCard === 'bonus' ? null : 'bonus')}
-                        >
-                          {(CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}{currentYearProjection?.bonus.toLocaleString()}
-                          <i className={`bi bi-chevron-${expandedSummaryCard === 'bonus' ? 'up' : 'down'} ms-1`} style={{ fontSize: '0.8rem' }}></i>
-                        </h5>
-                        {expandedSummaryCard === 'bonus' && (
-                          <div className="mt-2 p-2 bg-white bg-opacity-10 rounded">
-                            <small className="text-light">
-                              {bonusCalculation}
-                            </small>
-                          </div>
-                        )}
+                        <h5>{(CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}{currentYearProjection?.bonus.toLocaleString()}</h5>
+                        <div className="small text-light mt-1">
+                          {bonusCalculation}
+                        </div>
                       </div>
                       <div className="col-md-3">
                         <h6 className="text-light">RSU Vesting</h6>
@@ -483,6 +485,40 @@ function App() {
             </Button>
             <Button variant="primary" onClick={enableEditMode}>
               Enable Editing
+            </Button>
+          </Modal.Footer>
+        </Modal>
+
+        {/* Share Modal */}
+        <Modal show={showShareModal} onHide={() => setShowShareModal(false)} centered size="lg">
+          <Modal.Header closeButton>
+            <Modal.Title>Share Your Compensation Data</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <p>Share this URL with others to let them view your compensation calculation:</p>
+            <div className="d-flex">
+              <Form.Control
+                type="text"
+                value={shareUrl}
+                readOnly
+                className="me-2"
+                style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}
+              />
+              <Button variant="outline-primary" onClick={copyShareUrl}>
+                <i className="bi bi-clipboard me-1"></i>
+                Copy
+              </Button>
+            </div>
+            <div className="mt-3">
+              <small className="text-muted">
+                <i className="bi bi-info-circle me-1"></i>
+                The shared data will be read-only for viewers. They can enable editing to modify their own copy.
+              </small>
+            </div>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowShareModal(false)}>
+              Close
             </Button>
           </Modal.Footer>
         </Modal>

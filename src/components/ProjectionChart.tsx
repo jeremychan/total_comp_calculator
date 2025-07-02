@@ -7,9 +7,7 @@ import {
     CartesianGrid,
     Tooltip,
     Legend,
-    ResponsiveContainer,
-    LineChart,
-    Line
+    ResponsiveContainer
 } from 'recharts';
 import { YearlyProjection, CURRENCIES } from '../types';
 
@@ -44,14 +42,13 @@ const ProjectionChart: React.FC<ProjectionChartProps> = ({ projections, baseCurr
         return projections.map(p => {
             // Don't show data if base salary is 0 or undefined
             const hasBaseSalary = p.baseSalary > 0;
+            const isPredicted = p.year > currentYear;
             return {
                 year: p.year.toString(),
                 'Base Salary': hasBaseSalary ? Math.round(p.baseSalary) : null,
                 'Bonus': hasBaseSalary ? Math.round(p.bonus) : null,
                 'RSU Vesting': hasBaseSalary ? Math.round(p.rsuVestInBaseCurrency) : null,
-                'Total Comp': hasBaseSalary ? Math.round(p.totalCompInBaseCurrency) : null,
-                totalCompHistorical: (hasBaseSalary && p.year <= currentYear) ? Math.round(p.totalCompInBaseCurrency) : null,
-                totalCompFuture: (hasBaseSalary && p.year >= currentYear) ? Math.round(p.totalCompInBaseCurrency) : null
+                'Total Comp': hasBaseSalary ? Math.round(p.totalCompInBaseCurrency) : null
             };
         });
     }, [projections]);
@@ -134,7 +131,29 @@ const ProjectionChart: React.FC<ProjectionChartProps> = ({ projections, baseCurr
                         }}
                     >
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="year" />
+                        <XAxis
+                            dataKey="year"
+                            tick={({ x, y, payload }) => {
+                                const currentYear = new Date().getFullYear();
+                                const year = parseInt(payload.value);
+                                const isPredicted = year > currentYear;
+
+                                return (
+                                    <g transform={`translate(${x},${y})`}>
+                                        <text x={0} y={0} dy={16} textAnchor="middle" fill="#666" fontSize="12">
+                                            {year}
+                                        </text>
+                                        {isPredicted && (
+                                            <text x={0} y={14} dy={16} textAnchor="middle" fill="#999" fontSize="10">
+                                                (predicted)
+                                            </text>
+                                        )}
+                                    </g>
+                                );
+                            }}
+                            interval={0}
+                            height={60}
+                        />
                         <YAxis tickFormatter={formatCurrency} domain={[0, yAxisMax]} />
                         <Tooltip content={CustomTooltip} />
                         <Legend />
@@ -145,51 +164,7 @@ const ProjectionChart: React.FC<ProjectionChartProps> = ({ projections, baseCurr
                 </ResponsiveContainer>
             </div>
 
-            {/* Total Compensation Trend Line */}
-            <div className="mb-4">
-                <h6 className="mb-3">Total Compensation Trend</h6>
-                <ResponsiveContainer width="100%" height={300}>
-                    <LineChart
-                        data={chartData}
-                        margin={{
-                            top: 20,
-                            right: 30,
-                            left: 20,
-                            bottom: 5,
-                        }}
-                    >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="year" />
-                        <YAxis tickFormatter={formatCurrency} domain={[0, yAxisMax]} />
-                        <Tooltip
-                            formatter={(value: number, name: string) => {
-                                if (value === null) return [null, null];
-                                return [formatTooltipValue(value), 'Total Compensation'];
-                            }}
-                            labelFormatter={(label) => `Year: ${label}`}
-                        />
-                        <Line
-                            type="monotone"
-                            dataKey="totalCompHistorical"
-                            stroke="#dc3545"
-                            strokeWidth={3}
-                            dot={{ fill: '#dc3545', strokeWidth: 2, r: 6 }}
-                            activeDot={{ r: 8 }}
-                            connectNulls={false}
-                        />
-                        <Line
-                            type="monotone"
-                            dataKey="totalCompFuture"
-                            stroke="#dc3545"
-                            strokeWidth={3}
-                            strokeDasharray="5 5"
-                            dot={{ fill: '#dc3545', strokeWidth: 2, r: 6 }}
-                            activeDot={{ r: 8 }}
-                            connectNulls={false}
-                        />
-                    </LineChart>
-                </ResponsiveContainer>
-            </div>
+
 
             {/* Summary Statistics */}
             <div className="row">

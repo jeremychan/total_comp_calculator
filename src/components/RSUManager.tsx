@@ -371,7 +371,7 @@ const RSUManager: React.FC<RSUManagerProps> = ({
                             <th>Shares</th>
                             <th>Vested ({currency})</th>
                             <th>Remaining Value ({currency})</th>
-                            <th>Remaining Value ({baseCurrency})</th>
+                            {currency !== baseCurrency && <th>Remaining Value ({baseCurrency})</th>}
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
@@ -404,12 +404,14 @@ const RSUManager: React.FC<RSUManagerProps> = ({
                                             {remainingShares.toFixed(0)} shares remaining
                                         </small>
                                     </td>
-                                    <td>
-                                        <div>{baseSymbol}{formatCurrency(remainingValue * exchangeRate)}</div>
-                                        <small className="text-muted">
-                                            {remainingShares.toFixed(0)} shares remaining
-                                        </small>
-                                    </td>
+                                    {currency !== baseCurrency && (
+                                        <td>
+                                            <div>{baseSymbol}{formatCurrency(remainingValue * exchangeRate)}</div>
+                                            <small className="text-muted">
+                                                {remainingShares.toFixed(0)} shares remaining
+                                            </small>
+                                        </td>
+                                    )}
                                     <td>
                                         <Badge bg={status.variant}>{status.status}</Badge>
                                     </td>
