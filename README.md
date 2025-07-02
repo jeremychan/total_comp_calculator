@@ -1,46 +1,174 @@
-# Getting Started with Create React App
+# TC Calculator - Total Compensation Calculator
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A comprehensive web application for tracking and projecting total compensation packages at tech companies, including base salary, bonuses, and RSU vesting schedules.
 
-## Available Scripts
+![TC Calculator](https://img.shields.io/badge/Tech-React_TypeScript-blue) ![Deployment](https://img.shields.io/badge/Deployment-GitHub_Pages-green) ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-In the project directory, you can run:
+## 🚀 Live Demo
 
-### `npm start`
+**[Try it now: jeremychan.github.io/total_comp_calculator](https://jeremychan.github.io/total_comp_calculator)**
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+## ✨ Features
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+### 📊 **Comprehensive Compensation Tracking**
+- **Base Salary** configuration with year-over-year changes
+- **Bonus** calculations with performance multipliers
+- **RSU Grants** with flexible vesting schedules
+- **Multi-currency support** with real-time exchange rates
 
-### `npm test`
+### 📈 **Advanced Projections**
+- **7-year compensation projections** with visual charts
+- **Current year summary** with detailed breakdowns
+- **Peak year identification** and total compensation over period
+- **Mobile-responsive** charts with desktop/mobile optimizations
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### 💼 **Major Tech Companies**
+Pre-configured with data for:
+- Apple (AAPL)
+- Google (GOOGL) 
+- Amazon (AMZN)
+- Microsoft (MSFT)
+- Tesla (TSLA)
+- Netflix (NFLX)
+- NVIDIA (NVDA)
 
-### `npm run build`
+### 🔄 **Data Management**
+- **Local storage** - Your data stays private in your browser
+- **Share functionality** - Generate URLs to share calculations
+- **Read-only mode** - View shared calculations without affecting your data
+- **Export/Import** capabilities
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### 📱 **Modern UI/UX**
+- **Collapsible sections** for organized navigation
+- **Professional design** with clean, intuitive interface
+- **Mobile-first** responsive design
+- **Real-time calculations** as you type
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## 🛠️ Technology Stack
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- **Frontend**: React 19 + TypeScript
+- **UI Framework**: React Bootstrap 5
+- **Charts**: Recharts
+- **Styling**: Bootstrap 5 + Custom CSS
+- **Build Tool**: Create React App
+- **Deployment**: GitHub Pages with GitHub Actions
 
-### `npm run eject`
+## 🚀 Getting Started
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### Local Development
+```bash
+# Clone the repository
+git clone https://github.com/jeremychan/total_comp_calculator.git
+cd total_comp_calculator
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+# Install dependencies
+npm install
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+# Start development server
+npm start
+```
 
-## Learn More
+Open [http://localhost:3000](http://localhost:3000) to view in browser.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### Stock Data Setup (Optional)
+To enable historical stock price charts:
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+1. Get a free API key from [Alpha Vantage](https://www.alphavantage.co/support/#api-key)
+2. Copy the example config: `cp config.env.example config.env`
+3. Add your API key to `config.env`
+4. Fetch stock data: `npm run fetch-stock-data`
+
+## 📦 Available Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm start` | Start development server |
+| `npm run build` | Build for production |
+| `npm test` | Run test suite |
+| `npm run deploy` | Deploy to GitHub Pages |
+| `npm run fetch-stock-data` | Update stock price data |
+
+## 🔧 Configuration
+
+### Supported Currencies
+- USD, EUR, GBP, CAD, AUD, CHF, SEK, NOK, DKK, PLN
+
+### Vesting Schedules
+- **25/25/25/25** - Standard 4-year equal vesting
+- **10/20/30/40** - Back-loaded vesting  
+- **5/15/40/40** - Cliff + back-loaded
+- **Custom** - Define your own schedule
+
+### Company Presets
+Each company includes:
+- Default vesting schedules
+- Typical salary ranges
+- Historical stock data
+- Bonus structures
+
+## 📊 How It Works
+
+1. **Configure** your compensation package:
+   - Select company and currencies
+   - Set base salary progression
+   - Configure bonus percentages
+   - Add RSU grants with vesting schedules
+
+2. **View projections** across 7 years:
+   - Stacked bar charts show compensation breakdown
+   - Summary statistics highlight key metrics
+   - Interactive tooltips provide detailed information
+
+3. **Analyze stock performance**:
+   - Historical price charts with grant event markers
+   - Vesting event visualization
+   - Impact of stock price on total compensation
+
+4. **Share results**:
+   - Generate shareable URLs
+   - Read-only mode for viewers
+   - Privacy-focused (no server storage)
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature-name`
+3. Commit changes: `git commit -am 'Add feature'`
+4. Push to branch: `git push origin feature-name`
+5. Submit a Pull Request
+
+## 📋 Roadmap
+
+- [ ] Add more companies (Meta, Salesforce, etc.)
+- [ ] Tax calculation integration
+- [ ] 401k/pension tracking
+- [ ] Equity dilution modeling
+- [ ] PDF export functionality
+- [ ] Dark mode theme
+
+## 🐛 Issues & Support
+
+Found a bug or have a suggestion? 
+- **[Create an issue](https://github.com/jeremychan/total_comp_calculator/issues)**
+- **[View existing issues](https://github.com/jeremychan/total_comp_calculator/issues)**
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Alpha Vantage for stock price data
+- React Bootstrap for UI components
+- Recharts for data visualization
+- GitHub Pages for free hosting
+
+---
+
+**Built with ❤️ for the tech community**
+
+*Calculate your true total compensation and make informed career decisions.*
