@@ -2,6 +2,7 @@
   "name": "total_comp_calculator",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://jeremychan.github.io/total_comp_calculator",
   "dependencies": {
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
@@ -30,6 +31,8 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build",
     "fetch-stock-data": "node scripts/fetch-stock-data.js",
     "setup-env": "cp config.env.example config.env && echo '# Edit this file and add your Alpha Vantage API key' >> config.env"
   },
