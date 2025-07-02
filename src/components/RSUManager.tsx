@@ -249,10 +249,6 @@ const RSUManager: React.FC<RSUManagerProps> = ({
         return { status: `Vesting (Year ${yearsFromGrant + 1})`, variant: 'primary' };
     };
 
-    const totalPortfolioValue = rsuGrants.reduce((sum, grant) =>
-        sum + compensationCalculator.calculateTotalGrantValue(grant, stockPrice), 0
-    );
-
     const totalRemainingValue = rsuGrants.reduce((sum, grant) =>
         sum + compensationCalculator.calculateRemainingValue(grant, stockPrice, currentYear, vestingSchedule), 0
     );

@@ -109,16 +109,6 @@ const StockPriceInput: React.FC<StockPriceInputProps> = ({ value, currency, comp
         });
     };
 
-    const getDataSourceLabel = (): string => {
-        if (error || (stockData && stockData.price === 0)) {
-            return 'No historical data';
-        }
-        if (stockData) {
-            return 'From local data';
-        }
-        return 'Manual input';
-    };
-
     return (
         <Form.Group className="mb-3">
             <Form.Label>Current Stock Price</Form.Label>
