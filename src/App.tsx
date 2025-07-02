@@ -107,6 +107,10 @@ function App() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [showCopyToast, setShowCopyToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('Share URL copied to clipboard!');
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importData, setImportData] = useState('');
+  const [importError, setImportError] = useState('');
 
   // Collapsible sections state - default to collapsed on mobile
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -297,6 +301,7 @@ function App() {
 
   const copyShareUrl = () => {
     navigator.clipboard.writeText(shareUrl).then(() => {
+      setToastMessage('Share URL copied to clipboard!');
       setShowCopyToast(true);
     }).catch(() => {
       // Fallback - select the text
@@ -306,8 +311,84 @@ function App() {
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
+      setToastMessage('Share URL copied to clipboard!');
       setShowCopyToast(true);
     });
+  };
+
+  const handleImport = () => {
+    setImportError('');
+
+    if (!importData.trim()) {
+      setImportError('Please enter a share URL or base64 data');
+      return;
+    }
+
+    try {
+      let base64Data = '';
+
+      // Check if it's a URL or base64 data
+      if (importData.includes('data=')) {
+        // Extract data parameter from URL
+        const url = new URL(importData);
+        const dataParam = url.searchParams.get('data');
+        if (!dataParam) {
+          setImportError('Invalid share URL - no data parameter found');
+          return;
+        }
+        base64Data = dataParam;
+      } else {
+        // Assume it's base64 data directly
+        base64Data = importData.trim();
+      }
+
+      // Decode and parse the data
+      const decodedData = atob(base64Data);
+      const parsedData = JSON.parse(decodedData);
+
+      // Validate the structure
+      if (!parsedData || typeof parsedData !== 'object') {
+        setImportError('Invalid data format');
+        return;
+      }
+
+      // Convert date strings back to Date objects for RSU grants
+      if (parsedData.rsuGrants && Array.isArray(parsedData.rsuGrants)) {
+        parsedData.rsuGrants = parsedData.rsuGrants.map((grant: any) => ({
+          ...grant,
+          grantDate: new Date(grant.grantDate)
+        }));
+      }
+
+      // Update the compensation data
+      setCompensationData(parsedData);
+
+      // Save to localStorage
+      localStorage.setItem('compensation-data', JSON.stringify(parsedData));
+
+      // Reset projections to trigger recalculation
+      setProjections([]);
+
+      // Exit read-only mode if we were in it
+      setIsReadOnlyMode(false);
+
+      // Close modal and reset form
+      setShowImportModal(false);
+      setImportData('');
+      setImportError('');
+
+      // Show success toast
+      setToastMessage('Data imported successfully!');
+      setShowCopyToast(true);
+
+    } catch (error) {
+      console.error('Import error:', error);
+      if (error instanceof SyntaxError) {
+        setImportError('Invalid JSON data format');
+      } else {
+        setImportError('Failed to import data - please check the format');
+      }
+    }
   };
 
 
@@ -355,6 +436,14 @@ function App() {
                         </h5>
                       </div>
                       <div className="position-absolute top-0 end-0 d-flex gap-2">
+                        <button
+                          className="btn btn-outline-success btn-sm"
+                          onClick={() => setShowImportModal(true)}
+                          title="Import data from share URL or base64"
+                        >
+                          <i className="bi bi-download me-1"></i>
+                          Import
+                        </button>
                         <button
                           className="btn btn-outline-primary btn-sm"
                           onClick={shareData}
@@ -441,8 +530,10 @@ function App() {
                   <Button variant="outline-dark" size="sm" onClick={() => {
                     const currentUrl = window.location.href;
                     navigator.clipboard.writeText(currentUrl).then(() => {
+                      setToastMessage('Share URL copied to clipboard!');
                       setShowCopyToast(true);
                     }).catch(() => {
+                      setToastMessage('Share URL copied to clipboard!');
                       setShowCopyToast(true);
                     });
                   }}>
@@ -495,6 +586,52 @@ function App() {
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowShareModal(false)}>
               Close
+            </Button>
+          </Modal.Footer>
+        </Modal>
+
+        {/* Import Modal */}
+        <Modal show={showImportModal} onHide={() => setShowImportModal(false)} centered size="lg">
+          <Modal.Header closeButton>
+            <Modal.Title>Import Compensation Data</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <p>Import compensation data from a share URL or base64 data:</p>
+            <Form.Group className="mb-3">
+              <Form.Label>Share URL or Base64 Data</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={4}
+                value={importData}
+                onChange={(e) => setImportData(e.target.value)}
+                placeholder="Paste share URL (https://...) or base64 data here..."
+                style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}
+              />
+              {importError && (
+                <div className="text-danger mt-2">
+                  <i className="bi bi-exclamation-triangle me-1"></i>
+                  {importError}
+                </div>
+              )}
+            </Form.Group>
+            <div className="mt-3">
+              <small className="text-muted">
+                <i className="bi bi-info-circle me-1"></i>
+                This will replace your current data and save it to your browser's local storage.
+              </small>
+            </div>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => {
+              setShowImportModal(false);
+              setImportData('');
+              setImportError('');
+            }}>
+              Cancel
+            </Button>
+            <Button variant="success" onClick={handleImport} disabled={!importData.trim()}>
+              <i className="bi bi-download me-1"></i>
+              Import Data
             </Button>
           </Modal.Footer>
         </Modal>
@@ -772,7 +909,7 @@ function App() {
             <strong className="me-auto">Success</strong>
           </Toast.Header>
           <Toast.Body className="text-white">
-            Share URL copied to clipboard!
+            {toastMessage}
           </Toast.Body>
         </Toast>
       </ToastContainer>
