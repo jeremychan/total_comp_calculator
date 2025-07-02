@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Container, Row, Col, Card, Alert, Modal, Button, Form, Toast, ToastContainer } from 'react-bootstrap';
+import { Container, Row, Col, Card, Alert, Modal, Button, Form, Toast, ToastContainer, Collapse } from 'react-bootstrap';
 import { getYear } from 'date-fns';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
@@ -108,8 +108,24 @@ function App() {
   const [shareUrl, setShareUrl] = useState('');
   const [showCopyToast, setShowCopyToast] = useState(false);
 
+  // Collapsible sections state - default to collapsed on mobile
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [configOpen, setConfigOpen] = useState(!isMobile);
+  const [compensationOpen, setCompensationOpen] = useState(!isMobile);
+  const [stockHistoryOpen, setStockHistoryOpen] = useState(!isMobile);
+
   const currentYear = getYear(new Date());
   // Removed projectionYears - now using fixed range
+
+  // Handle window resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Save to localStorage whenever data changes (but not when viewing shared data)
   useEffect(() => {
@@ -299,40 +315,7 @@ function App() {
   return (
     <div className="App">
       <Container fluid className="py-4">
-        <Row>
-          <Col>
-            <div className="d-flex justify-content-between align-items-center mb-4">
-              <div></div>
-              <div className="text-center">
-                <h1 className="mb-2">
-                  <i className="bi bi-calculator me-2"></i>
-                  Tech Company Total Compensation Calculator
-                </h1>
-                <p className="text-muted mb-0">
-                  Track your total compensation including base salary, bonus, and RSU vesting across multiple years
-                </p>
-              </div>
-              <div className="d-flex gap-2">
-                <button
-                  className="btn btn-outline-primary btn-sm"
-                  onClick={shareData}
-                  title="Share your data via URL"
-                >
-                  <i className="bi bi-share me-1"></i>
-                  Share
-                </button>
-                <button
-                  className="btn btn-outline-danger btn-sm"
-                  onClick={clearToDefault}
-                  title="Clear all data and reset to defaults"
-                >
-                  <i className="bi bi-arrow-clockwise me-1"></i>
-                  Reset
-                </button>
-              </div>
-            </div>
-          </Col>
-        </Row>
+
 
         {/* Current Total Comp Banner */}
         {projections.length > 0 && (() => {
@@ -360,58 +343,60 @@ function App() {
           }).filter(Boolean).join('\n');
 
           return currentYearProjection ? (
-            <Row className="mb-4">
+            <Row className="mb-3">
               <Col>
                 <div className="card border-0 shadow-sm" style={{ background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)' }}>
-                  <div className="card-body text-center py-4">
-                    <h2 className="mb-2 text-dark">
-                      <i className="bi bi-trophy me-2 text-warning"></i>
-                      Current Year Total Compensation
-                    </h2>
-                    <h1 className="display-4 mb-2 text-primary fw-bold">
-                      {(currentYearProjection && compensationData.baseCurrency &&
-                        CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}
-                      {currentYearProjection?.totalCompInBaseCurrency.toLocaleString('en-US', {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0
-                      })}
-                    </h1>
-                    <div className="row text-center">
-                      <div className="col-md-3">
-                        <h6 className="text-muted">Base Salary</h6>
-                        <h5 className="text-dark">{(CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}{currentYearProjection?.baseSalary.toLocaleString()}</h5>
-                      </div>
-                      <div className="col-md-3">
-                        <h6 className="text-muted">Bonus</h6>
-                        <h5 className="text-dark">{(CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}{currentYearProjection?.bonus.toLocaleString()}</h5>
-                        <div className="small text-muted mt-1">
-                          {bonusCalculation}
-                        </div>
-                      </div>
-                      <div className="col-md-3">
-                        <h6 className="text-muted">RSU Vesting</h6>
-                        <h5
-                          className="text-dark"
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => setExpandedSummaryCard(expandedSummaryCard === 'rsu' ? null : 'rsu')}
+                  <div className="card-body py-3">
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                      <h5 className="mb-0 text-dark">
+                        <i className="bi bi-trophy me-2 text-warning"></i>
+                        Total Compensation {currentYearProjection?.year}
+                      </h5>
+                      <div className="d-flex gap-2">
+                        <button
+                          className="btn btn-outline-primary btn-sm"
+                          onClick={shareData}
+                          title="Share your data via URL"
                         >
-                          {(CURRENCIES.find(c => c.code === compensationData.rsuCurrency)?.symbol) || ''}{currentYearProjection?.rsuVest.toLocaleString()}
-                          <i className={`bi bi-chevron-${expandedSummaryCard === 'rsu' ? 'up' : 'down'} ms-1`} style={{ fontSize: '0.8rem' }}></i>
-                        </h5>
-                        <div className="small text-muted mt-1">
-                          ({(CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}{currentYearProjection?.rsuVestInBaseCurrency.toLocaleString()})
-                        </div>
-                        {expandedSummaryCard === 'rsu' && (
-                          <div className="mt-2 p-2 bg-light rounded border">
-                            <small className="text-muted" style={{ whiteSpace: 'pre-line' }}>
-                              {rsuVestingDetails || 'No RSU vesting this year'}
-                            </small>
-                          </div>
-                        )}
+                          <i className="bi bi-share me-1"></i>
+                          Share
+                        </button>
+                        <button
+                          className="btn btn-outline-danger btn-sm"
+                          onClick={clearToDefault}
+                          title="Clear all data and reset to defaults"
+                        >
+                          <i className="bi bi-arrow-clockwise me-1"></i>
+                          Reset
+                        </button>
                       </div>
-                      <div className="col-md-3">
-                        <h6 className="text-muted">Year</h6>
-                        <h5 className="text-dark">{currentYearProjection?.year}</h5>
+                    </div>
+                    <div className="text-center mb-3">
+                      <h2 className="text-primary fw-bold mb-0">
+                        {(currentYearProjection && compensationData.baseCurrency &&
+                          CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}
+                        {currentYearProjection?.totalCompInBaseCurrency.toLocaleString('en-US', {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0
+                        })}
+                      </h2>
+                    </div>
+                    <div className="row text-center">
+                      <div className="col-6 col-md-3">
+                        <div className="small text-muted">Base Salary</div>
+                        <div className="fw-bold">{(CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}{currentYearProjection?.baseSalary.toLocaleString()}</div>
+                      </div>
+                      <div className="col-6 col-md-3">
+                        <div className="small text-muted">Bonus</div>
+                        <div className="fw-bold">{(CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}{currentYearProjection?.bonus.toLocaleString()}</div>
+                      </div>
+                      <div className="col-6 col-md-3">
+                        <div className="small text-muted">RSU Vesting</div>
+                        <div className="fw-bold">{(CURRENCIES.find(c => c.code === compensationData.rsuCurrency)?.symbol) || ''}{currentYearProjection?.rsuVest.toLocaleString()}</div>
+                      </div>
+                      <div className="col-6 col-md-3">
+                        <div className="small text-muted">Currency</div>
+                        <div className="fw-bold">{compensationData.baseCurrency}</div>
                       </div>
                     </div>
                   </div>
@@ -493,194 +478,249 @@ function App() {
         </Modal>
 
         {/* Configuration Section */}
-        <Row className="mb-4">
-          <Col lg={4} className="mb-3">
-            <Card>
-              <Card.Header>
-                <h5 className="mb-0">
-                  <i className="bi bi-building me-2"></i>
-                  Company & Currency
-                </h5>
-              </Card.Header>
-              <Card.Body>
-                <CompanySelector
-                  value={compensationData.company}
-                  onChange={(company) => updateCompensationData({ company })}
-                />
-                <hr />
-                <CurrencySelector
-                  baseCurrency={compensationData.baseCurrency}
-                  rsuCurrency={compensationData.rsuCurrency}
-                  onBaseCurrencyChange={(baseCurrency) => updateCompensationData({ baseCurrency })}
-                  onRsuCurrencyChange={(rsuCurrency) => updateCompensationData({ rsuCurrency })}
-                />
-                <hr />
-                <VestingScheduleSelector
-                  vestingSchedule={compensationData.vestingSchedule || []}
-                  onChange={(vestingSchedule) => updateCompensationData({ vestingSchedule })}
-                />
-                {compensationData.baseCurrency !== compensationData.rsuCurrency && (
-                  <>
-                    <hr />
-                    <ExchangeRateDisplay
-                      from={compensationData.rsuCurrency}
-                      to={compensationData.baseCurrency}
-                      rate={exchangeRate}
-                      lastUpdated={lastUpdated}
-                    />
-                  </>
-                )}
-              </Card.Body>
-            </Card>
-          </Col>
-
-          <Col lg={4} className="mb-3">
-            <Card>
-              <Card.Header>
-                <h5 className="mb-0">
-                  <i className="bi bi-cash-stack me-2"></i>
-                  Salary & Stock Price
-                </h5>
-              </Card.Header>
-              <Card.Body>
-                <SalaryConfiguration
-                  salaryConfigs={compensationData.salaryConfigs || []}
-                  baseCurrency={compensationData.baseCurrency}
-                  onChange={(salaryConfigs) => updateCompensationData({ salaryConfigs })}
-                />
-                <hr />
-                <StockPriceInput
-                  value={compensationData.stockPrice}
-                  currency={compensationData.rsuCurrency}
-                  company={compensationData.company}
-                  onChange={(stockPrice) => updateCompensationData({ stockPrice })}
-                />
-              </Card.Body>
-            </Card>
-          </Col>
-
-          <Col lg={4} className="mb-3">
-            <Card>
-              <Card.Header>
-                <h5 className="mb-0">
-                  <i className="bi bi-percent me-2"></i>
-                  Bonus Configuration
-                </h5>
-              </Card.Header>
-              <Card.Body>
-                <BonusConfiguration
-                  bonusConfigs={compensationData.bonusConfigs}
-                  company={compensationData.company}
-                  onChange={(bonusConfigs) => updateCompensationData({ bonusConfigs })}
-                />
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-
-        {/* RSU Management */}
-        <Row className="mb-4">
+        <Row className="mb-3">
           <Col>
-            <Card>
-              <Card.Header>
-                <h5 className="mb-0">
-                  <i className="bi bi-graph-up me-2"></i>
-                  RSU Grants Management
-                </h5>
-              </Card.Header>
-              <Card.Body>
-                <RSUManager
-                  rsuGrants={compensationData.rsuGrants}
-                  company={compensationData.company}
-                  stockPrice={compensationData.stockPrice}
-                  currency={compensationData.rsuCurrency}
-                  baseCurrency={compensationData.baseCurrency}
-                  exchangeRate={exchangeRate}
-                  vestingSchedule={compensationData.vestingSchedule || []}
-                  onChange={(rsuGrants) => updateCompensationData({ rsuGrants })}
-                />
-              </Card.Body>
-            </Card>
+            <div className="card border-0 shadow-sm">
+              <div
+                className="card-header bg-light border-0 py-2 cursor-pointer"
+                onClick={() => setConfigOpen(!configOpen)}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="d-flex justify-content-between align-items-center">
+                  <h6 className="mb-0 fw-bold">
+                    <i className="bi bi-gear me-2"></i>
+                    Configuration
+                  </h6>
+                  <i className={`bi bi-chevron-${configOpen ? 'up' : 'down'}`}></i>
+                </div>
+              </div>
+              <Collapse in={configOpen}>
+                <div className="card-body">
+                  <Row className="mb-4">
+                    <Col lg={4} className="mb-3">
+                      <Card>
+                        <Card.Header>
+                          <h6 className="mb-0">
+                            <i className="bi bi-building me-2"></i>
+                            Company & Currency
+                          </h6>
+                        </Card.Header>
+                        <Card.Body>
+                          <CompanySelector
+                            value={compensationData.company}
+                            onChange={(company) => updateCompensationData({ company })}
+                          />
+                          <hr />
+                          <CurrencySelector
+                            baseCurrency={compensationData.baseCurrency}
+                            rsuCurrency={compensationData.rsuCurrency}
+                            onBaseCurrencyChange={(baseCurrency) => updateCompensationData({ baseCurrency })}
+                            onRsuCurrencyChange={(rsuCurrency) => updateCompensationData({ rsuCurrency })}
+                          />
+                          <hr />
+                          <VestingScheduleSelector
+                            vestingSchedule={compensationData.vestingSchedule || []}
+                            onChange={(vestingSchedule) => updateCompensationData({ vestingSchedule })}
+                          />
+                          {compensationData.baseCurrency !== compensationData.rsuCurrency && (
+                            <>
+                              <hr />
+                              <ExchangeRateDisplay
+                                from={compensationData.rsuCurrency}
+                                to={compensationData.baseCurrency}
+                                rate={exchangeRate}
+                                lastUpdated={lastUpdated}
+                              />
+                            </>
+                          )}
+                        </Card.Body>
+                      </Card>
+                    </Col>
+
+                    <Col lg={4} className="mb-3">
+                      <Card>
+                        <Card.Header>
+                          <h6 className="mb-0">
+                            <i className="bi bi-cash-stack me-2"></i>
+                            Salary & Stock Price
+                          </h6>
+                        </Card.Header>
+                        <Card.Body>
+                          <SalaryConfiguration
+                            salaryConfigs={compensationData.salaryConfigs || []}
+                            baseCurrency={compensationData.baseCurrency}
+                            onChange={(salaryConfigs) => updateCompensationData({ salaryConfigs })}
+                          />
+                          <hr />
+                          <StockPriceInput
+                            value={compensationData.stockPrice}
+                            currency={compensationData.rsuCurrency}
+                            company={compensationData.company}
+                            onChange={(stockPrice) => updateCompensationData({ stockPrice })}
+                          />
+                        </Card.Body>
+                      </Card>
+                    </Col>
+
+                    <Col lg={4} className="mb-3">
+                      <Card>
+                        <Card.Header>
+                          <h6 className="mb-0">
+                            <i className="bi bi-percent me-2"></i>
+                            Bonus Configuration
+                          </h6>
+                        </Card.Header>
+                        <Card.Body>
+                          <BonusConfiguration
+                            bonusConfigs={compensationData.bonusConfigs}
+                            company={compensationData.company}
+                            onChange={(bonusConfigs) => updateCompensationData({ bonusConfigs })}
+                          />
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  </Row>
+
+                  {/* RSU Management */}
+                  <Row>
+                    <Col>
+                      <Card>
+                        <Card.Header>
+                          <h6 className="mb-0">
+                            <i className="bi bi-graph-up me-2"></i>
+                            RSU Grants Management
+                          </h6>
+                        </Card.Header>
+                        <Card.Body>
+                          <RSUManager
+                            rsuGrants={compensationData.rsuGrants}
+                            company={compensationData.company}
+                            stockPrice={compensationData.stockPrice}
+                            currency={compensationData.rsuCurrency}
+                            baseCurrency={compensationData.baseCurrency}
+                            exchangeRate={exchangeRate}
+                            vestingSchedule={compensationData.vestingSchedule || []}
+                            onChange={(rsuGrants) => updateCompensationData({ rsuGrants })}
+                          />
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  </Row>
+                </div>
+              </Collapse>
+            </div>
           </Col>
         </Row>
 
-        {/* Projections */}
-        <Row>
-          <Col lg={8} className="mb-3">
-            <Card>
-              <Card.Header>
-                <h5 className="mb-0">
-                  <i className="bi bi-bar-chart me-2"></i>
-                  Total Compensation Projection
-                </h5>
-              </Card.Header>
-              <Card.Body>
-                {loading ? (
-                  <div className="text-center py-5">
-                    <div className="spinner-border" role="status">
-                      <span className="visually-hidden">Loading...</span>
-                    </div>
-                    <p className="mt-2 text-muted">Calculating projections...</p>
-                  </div>
-                ) : projections.length > 0 ? (
-                  <ProjectionChart
-                    projections={projections}
-                    baseCurrency={compensationData.baseCurrency}
-                  />
-                ) : (
-                  <div className="text-center py-5">
-                    <i className="bi bi-graph-up text-muted" style={{ fontSize: '3rem' }}></i>
-                    <p className="text-muted mt-3">No projection data available.</p>
-                    <p className="small text-muted">Configure your compensation details to see projections.</p>
-                  </div>
-                )}
-              </Card.Body>
-            </Card>
-          </Col>
+        {/* Total Compensation Section */}
+        <Row className="mb-3">
+          <Col>
+            <div className="card border-0 shadow-sm">
+              <div
+                className="card-header bg-light border-0 py-2 cursor-pointer"
+                onClick={() => setCompensationOpen(!compensationOpen)}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="d-flex justify-content-between align-items-center">
+                  <h6 className="mb-0 fw-bold">
+                    <i className="bi bi-bar-chart me-2"></i>
+                    Total Compensation
+                  </h6>
+                  <i className={`bi bi-chevron-${compensationOpen ? 'up' : 'down'}`}></i>
+                </div>
+              </div>
+              <Collapse in={compensationOpen}>
+                <div className="card-body">
+                  <Row>
+                    <Col lg={8} className="mb-3">
+                      <Card>
+                        <Card.Header>
+                          <h6 className="mb-0">
+                            <i className="bi bi-graph-up me-2"></i>
+                            Projection Chart
+                          </h6>
+                        </Card.Header>
+                        <Card.Body>
+                          {loading ? (
+                            <div className="text-center py-5">
+                              <div className="spinner-border" role="status">
+                                <span className="visually-hidden">Loading...</span>
+                              </div>
+                              <p className="mt-2 text-muted">Calculating projections...</p>
+                            </div>
+                          ) : projections.length > 0 ? (
+                            <ProjectionChart
+                              projections={projections}
+                              baseCurrency={compensationData.baseCurrency}
+                            />
+                          ) : (
+                            <div className="text-center py-5">
+                              <i className="bi bi-graph-up text-muted" style={{ fontSize: '3rem' }}></i>
+                              <p className="text-muted mt-3">No projection data available.</p>
+                              <p className="small text-muted">Configure your compensation details to see projections.</p>
+                            </div>
+                          )}
+                        </Card.Body>
+                      </Card>
+                    </Col>
 
-          <Col lg={4} className="mb-3">
-            <Card>
-              <Card.Header>
-                <h5 className="mb-0">
-                  <i className="bi bi-table me-2"></i>
-                  Yearly Breakdown
-                </h5>
-              </Card.Header>
-              <Card.Body className="p-0">
-                <ProjectionTable
-                  projections={projections}
-                  baseCurrency={compensationData.baseCurrency}
-                  rsuCurrency={compensationData.rsuCurrency}
-                  rsuGrants={compensationData.rsuGrants}
-                  stockPrice={compensationData.stockPrice}
-                  company={compensationData.company}
-                  vestingSchedule={compensationData.vestingSchedule || []}
-                />
-              </Card.Body>
-            </Card>
+                    <Col lg={4} className="mb-3">
+                      <Card>
+                        <Card.Header>
+                          <h6 className="mb-0">
+                            <i className="bi bi-table me-2"></i>
+                            Yearly Breakdown
+                          </h6>
+                        </Card.Header>
+                        <Card.Body className="p-0">
+                          <ProjectionTable
+                            projections={projections}
+                            baseCurrency={compensationData.baseCurrency}
+                            rsuCurrency={compensationData.rsuCurrency}
+                            rsuGrants={compensationData.rsuGrants}
+                            stockPrice={compensationData.stockPrice}
+                            company={compensationData.company}
+                            vestingSchedule={compensationData.vestingSchedule || []}
+                          />
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  </Row>
+                </div>
+              </Collapse>
+            </div>
           </Col>
         </Row>
 
-        {/* Stock Price History */}
+        {/* Stock Price History Section */}
         {compensationData.rsuGrants.length > 0 && (
-          <Row className="mb-4">
+          <Row className="mb-3">
             <Col>
-              <Card>
-                <Card.Header>
-                  <h5 className="mb-0">
-                    <i className="bi bi-graph-up-arrow me-2"></i>
-                    Stock Price History & Vesting Events
-                  </h5>
-                </Card.Header>
-                <Card.Body>
-                  <StockPriceChart
-                    company={compensationData.company}
-                    currency={compensationData.rsuCurrency}
-                    rsuGrants={compensationData.rsuGrants}
-                    vestingSchedule={compensationData.vestingSchedule || []}
-                  />
-                </Card.Body>
-              </Card>
+              <div className="card border-0 shadow-sm">
+                <div
+                  className="card-header bg-light border-0 py-2 cursor-pointer"
+                  onClick={() => setStockHistoryOpen(!stockHistoryOpen)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className="d-flex justify-content-between align-items-center">
+                    <h6 className="mb-0 fw-bold">
+                      <i className="bi bi-graph-up-arrow me-2"></i>
+                      Stock Price History
+                    </h6>
+                    <i className={`bi bi-chevron-${stockHistoryOpen ? 'up' : 'down'}`}></i>
+                  </div>
+                </div>
+                <Collapse in={stockHistoryOpen}>
+                  <div className="card-body">
+                    <StockPriceChart
+                      company={compensationData.company}
+                      currency={compensationData.rsuCurrency}
+                      rsuGrants={compensationData.rsuGrants}
+                      vestingSchedule={compensationData.vestingSchedule || []}
+                    />
+                  </div>
+                </Collapse>
+              </div>
             </Col>
           </Row>
         )}
@@ -690,7 +730,7 @@ function App() {
           <Col>
             <hr />
             <p className="text-center text-muted small">
-              Tech Company Total Compensation Calculator - Your data is stored locally in your browser
+              TC Calculator - Your data is stored locally in your browser
             </p>
           </Col>
         </Row>
