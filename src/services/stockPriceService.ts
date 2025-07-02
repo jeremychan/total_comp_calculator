@@ -51,10 +51,14 @@ class StockPriceService {
                 return this.cache.get(symbol)!;
             }
 
-            // Load from local file
-            const response = await fetch(`/data/${symbol}.json`);
+            // Load from local file - adjust path for development vs production
+            const basePath = process.env.NODE_ENV === 'development' ? '' : (process.env.PUBLIC_URL || '');
+            const fetchUrl = `${basePath}/data/${symbol}.json`;
+
+            console.log(`Fetching stock data from: ${fetchUrl}`);
+            const response = await fetch(fetchUrl);
             if (!response.ok) {
-                console.warn(`No data file found for ${symbol}, using fallback`);
+                console.warn(`No data file found for ${symbol} at ${fetchUrl}, status: ${response.status}`);
                 return null;
             }
 

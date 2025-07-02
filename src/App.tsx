@@ -1,12 +1,18 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Container, Row, Col, Card, Alert, Modal, Button, Form, Toast, ToastContainer, Collapse } from 'react-bootstrap';
 import { getYear } from 'date-fns';
+import { User } from 'firebase/auth';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
 import { CompensationData, YearlyProjection, CURRENCIES, COMPANIES } from './types';
 import { compensationCalculator } from './services/compensationCalculator';
 import { exchangeRateService } from './services/exchangeRateService';
+import { signInWithGoogle, signOutUser, onAuthStateChange } from './services/authService';
+import {
+  syncToFirestore,
+  mergeDataOnSignIn
+} from './services/syncService';
 
 import CompanySelector from './components/CompanySelector';
 import CurrencySelector from './components/CurrencySelector';
@@ -19,8 +25,13 @@ import ProjectionChart from './components/ProjectionChart';
 import ProjectionTable from './components/ProjectionTable';
 import StockPriceChart from './components/StockPriceChart';
 import ExchangeRateDisplay from './components/ExchangeRateDisplay';
+import AuthButton from './components/AuthButton';
 
 function App() {
+  // Authentication state
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
   const [compensationData, setCompensationData] = useState<CompensationData>(() => {
     const data = initializeData();
     return data.compensationData;
@@ -130,6 +141,46 @@ function App() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Authentication state listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChange(async (user) => {
+      setUser(user);
+      setAuthLoading(false);
+
+      if (user) {
+        // User signed in - merge local and cloud data
+        try {
+          const mergedData = await mergeDataOnSignIn(user);
+          if (mergedData) {
+            setCompensationData(mergedData);
+          }
+        } catch (error) {
+          console.error('Error syncing data on sign in:', error);
+        }
+      }
+      // If user signed out, we continue using local data (no action needed)
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Sync to Firebase when data changes (only if authenticated)
+  useEffect(() => {
+    if (user && !isReadOnlyMode) {
+      const syncData = async () => {
+        try {
+          await syncToFirestore(user, compensationData);
+        } catch (error) {
+          console.error('Error syncing to Firebase:', error);
+        }
+      };
+
+      // Debounce sync to avoid too many writes
+      const timeoutId = setTimeout(syncData, 1000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [user, compensationData, isReadOnlyMode]);
 
   // Save to localStorage whenever data changes (but not when viewing shared data)
   useEffect(() => {
@@ -391,6 +442,32 @@ function App() {
     }
   };
 
+  // Authentication handlers
+  const handleSignIn = async () => {
+    setAuthLoading(true);
+    try {
+      await signInWithGoogle();
+      setToastMessage('Successfully signed in! Your data is now syncing across devices.');
+      setShowCopyToast(true);
+    } catch (error) {
+      console.error('Sign in error:', error);
+      setToastMessage('Sign in failed. Please try again.');
+      setShowCopyToast(true);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOutUser();
+      setToastMessage('Signed out successfully. Your data is still saved locally.');
+      setShowCopyToast(true);
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
+  };
+
 
 
   return (
@@ -435,7 +512,14 @@ function App() {
                           Total Compensation {currentYearProjection?.year}
                         </h5>
                       </div>
-                      <div className="position-absolute top-0 end-0 d-flex gap-2">
+                      <div className="position-absolute top-0 end-0 d-flex gap-2 align-items-center">
+                        <AuthButton
+                          user={user}
+                          loading={authLoading}
+                          onSignIn={handleSignIn}
+                          onSignOut={handleSignOut}
+                        />
+                        <div className="vr" style={{ height: '20px' }}></div>
                         <button
                           className="btn btn-outline-success btn-sm"
                           onClick={() => setShowImportModal(true)}

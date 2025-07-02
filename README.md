@@ -23,6 +23,18 @@ npm start
 
 Open [http://localhost:3000](http://localhost:3000) to view in browser.
 
+### Firebase Sync Setup (Optional)
+To enable cross-device sync with Google sign-in:
+
+1. Create a Firebase project at [https://console.firebase.google.com/](https://console.firebase.google.com/)
+2. Enable Authentication with Google provider
+3. Create a Firestore database
+4. Copy `firebase.config.example.js` to `src/services/firebaseConfig.ts`
+5. Replace the placeholder values with your Firebase project settings
+6. The app will automatically enable sync features when Firebase is configured
+
+Without Firebase setup, the app works normally with local browser storage only.
+
 ## 📊 Preconfigured Market Data
 
 ### Stock Data Setup (Optional)
@@ -45,10 +57,11 @@ Pre-configured with data for:
 
 ## 🔄 Data Management
 
-- **Local storage** - Your data stays private in your browser
-- **Share functionality** - Generate URLs to share calculations
+- **Local storage** - Your data stays private in your browser by default
+- **Cross-device sync** - Sign in with Google to sync data across all your devices (optional)
+- **Share functionality** - Generate URLs to share calculations with others
 - **Read-only mode** - View shared calculations without affecting your data
-- **Export/Import** capabilities
+- **Export/Import** capabilities - Import data from share URLs or base64 data
 
 ---
 
