@@ -4,6 +4,12 @@ A comprehensive web application for tracking and projecting total compensation p
 
 ![TC Calculator](https://img.shields.io/badge/Tech-React_TypeScript-blue) ![Deployment](https://img.shields.io/badge/Deployment-GitHub_Pages-green) ![License](https://img.shields.io/badge/License-MIT-yellow)
 
+## 📸 Screenshot
+
+![TC Calculator Screenshot](https://jeremychan.github.io/total_comp_calculator/screenshot.png)
+
+*Calculate and visualize your total compensation with interactive charts and detailed breakdowns*
+
 ## 🚀 Live Demo
 
 **[Try it now: jeremychan.github.io/total_comp_calculator](https://jeremychan.github.io/total_comp_calculator)**
