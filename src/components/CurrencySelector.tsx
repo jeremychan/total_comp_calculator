@@ -7,13 +7,15 @@ interface CurrencySelectorProps {
     rsuCurrency: string;
     onBaseCurrencyChange: (currency: string) => void;
     onRsuCurrencyChange: (currency: string) => void;
+    disabled?: boolean;
 }
 
 const CurrencySelector: React.FC<CurrencySelectorProps> = ({
     baseCurrency,
     rsuCurrency,
     onBaseCurrencyChange,
-    onRsuCurrencyChange
+    onRsuCurrencyChange,
+    disabled = false
 }) => {
     return (
         <>
@@ -24,6 +26,7 @@ const CurrencySelector: React.FC<CurrencySelectorProps> = ({
                         <Form.Select
                             value={baseCurrency}
                             onChange={(e) => onBaseCurrencyChange(e.target.value)}
+                            disabled={disabled}
                         >
                             {CURRENCIES.map((currency) => (
                                 <option key={currency.code} value={currency.code}>
@@ -41,6 +44,7 @@ const CurrencySelector: React.FC<CurrencySelectorProps> = ({
                         <Form.Select
                             value={rsuCurrency}
                             onChange={(e) => onRsuCurrencyChange(e.target.value)}
+                            disabled={disabled}
                         >
                             {CURRENCIES.map((currency) => (
                                 <option key={currency.code} value={currency.code}>

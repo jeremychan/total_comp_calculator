@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Container, Row, Col, Card, Alert, Modal, Button, Form } from 'react-bootstrap';
+import { Container, Row, Col, Card, Alert, Modal, Button, Form, Toast, ToastContainer } from 'react-bootstrap';
 import { getYear } from 'date-fns';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
@@ -58,8 +58,7 @@ function App() {
           decodedData.vestingSchedule = companyInfo?.defaultVestingSchedule || [3, 6, 9, 12];
         }
 
-        // Clean up URL
-        window.history.replaceState({}, document.title, window.location.pathname);
+        // Keep URL params for read-only mode detection
         return { compensationData: decodedData, isSharedData: true };
       } catch (error) {
         console.error('Error loading data from URL:', error);
@@ -104,18 +103,20 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [exchangeRate, setExchangeRate] = useState<number>(1);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [showEditWarning, setShowEditWarning] = useState(false);
   const [expandedSummaryCard, setExpandedSummaryCard] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
+  const [showCopyToast, setShowCopyToast] = useState(false);
 
   const currentYear = getYear(new Date());
   // Removed projectionYears - now using fixed range
 
-  // Save to localStorage whenever data changes
+  // Save to localStorage whenever data changes (but not when viewing shared data)
   useEffect(() => {
-    localStorage.setItem('compensation-data', JSON.stringify(compensationData));
-  }, [compensationData]);
+    if (!isReadOnlyMode) {
+      localStorage.setItem('compensation-data', JSON.stringify(compensationData));
+    }
+  }, [compensationData, isReadOnlyMode]);
 
   // Create a stable data hash for dependency tracking
   const dataHash = useMemo(() => {
@@ -216,11 +217,6 @@ function App() {
   }, [dataHash, currentYear]);
 
   const updateCompensationData = useCallback((updates: Partial<CompensationData>) => {
-    if (isReadOnlyMode) {
-      setShowEditWarning(true);
-      return;
-    }
-
     setCompensationData(prev => {
       const newData = { ...prev, ...updates };
 
@@ -250,24 +246,9 @@ function App() {
 
       return newData;
     });
-  }, [isReadOnlyMode, currentYear]);
+  }, [currentYear]);
 
-  const enableEditMode = () => {
-    if (window.confirm('This will overwrite your local saved data with the shared data. Continue?')) {
-      setIsReadOnlyMode(false);
-      setShowEditWarning(false);
-      // Save to localStorage
-      localStorage.setItem('compensation-data', JSON.stringify({
-        ...compensationData,
-        rsuGrants: compensationData.rsuGrants.map(grant => ({
-          ...grant,
-          grantDate: grant.grantDate.toISOString()
-        }))
-      }));
-    } else {
-      setShowEditWarning(false);
-    }
-  };
+
 
   const clearToDefault = () => {
     if (window.confirm('Are you sure you want to clear all data and reset to defaults?')) {
@@ -277,7 +258,6 @@ function App() {
       setExchangeRate(1);
       setLastUpdated(null);
       setIsReadOnlyMode(false); // Exit read-only mode
-      setShowEditWarning(false); // Close any open modals
     }
   };
 
@@ -301,7 +281,7 @@ function App() {
 
   const copyShareUrl = () => {
     navigator.clipboard.writeText(shareUrl).then(() => {
-      alert('Share URL copied to clipboard!');
+      setShowCopyToast(true);
     }).catch(() => {
       // Fallback - select the text
       const textArea = document.createElement('textarea');
@@ -310,7 +290,7 @@ function App() {
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
-      alert('Share URL copied to clipboard!');
+      setShowCopyToast(true);
     });
   };
 
@@ -382,13 +362,13 @@ function App() {
           return currentYearProjection ? (
             <Row className="mb-4">
               <Col>
-                <div className="card bg-primary text-white">
+                <div className="card border-0 shadow-sm" style={{ background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)' }}>
                   <div className="card-body text-center py-4">
-                    <h2 className="mb-2">
-                      <i className="bi bi-trophy me-2"></i>
+                    <h2 className="mb-2 text-dark">
+                      <i className="bi bi-trophy me-2 text-warning"></i>
                       Current Year Total Compensation
                     </h2>
-                    <h1 className="display-4 mb-2">
+                    <h1 className="display-4 mb-2 text-primary fw-bold">
                       {(currentYearProjection && compensationData.baseCurrency &&
                         CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}
                       {currentYearProjection?.totalCompInBaseCurrency.toLocaleString('en-US', {
@@ -398,39 +378,40 @@ function App() {
                     </h1>
                     <div className="row text-center">
                       <div className="col-md-3">
-                        <h6 className="text-light">Base Salary</h6>
-                        <h5>{(CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}{currentYearProjection?.baseSalary.toLocaleString()}</h5>
+                        <h6 className="text-muted">Base Salary</h6>
+                        <h5 className="text-dark">{(CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}{currentYearProjection?.baseSalary.toLocaleString()}</h5>
                       </div>
                       <div className="col-md-3">
-                        <h6 className="text-light">Bonus</h6>
-                        <h5>{(CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}{currentYearProjection?.bonus.toLocaleString()}</h5>
-                        <div className="small text-light mt-1">
+                        <h6 className="text-muted">Bonus</h6>
+                        <h5 className="text-dark">{(CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}{currentYearProjection?.bonus.toLocaleString()}</h5>
+                        <div className="small text-muted mt-1">
                           {bonusCalculation}
                         </div>
                       </div>
                       <div className="col-md-3">
-                        <h6 className="text-light">RSU Vesting</h6>
+                        <h6 className="text-muted">RSU Vesting</h6>
                         <h5
+                          className="text-dark"
                           style={{ cursor: 'pointer' }}
                           onClick={() => setExpandedSummaryCard(expandedSummaryCard === 'rsu' ? null : 'rsu')}
                         >
                           {(CURRENCIES.find(c => c.code === compensationData.rsuCurrency)?.symbol) || ''}{currentYearProjection?.rsuVest.toLocaleString()}
                           <i className={`bi bi-chevron-${expandedSummaryCard === 'rsu' ? 'up' : 'down'} ms-1`} style={{ fontSize: '0.8rem' }}></i>
                         </h5>
-                        <div className="small text-light mt-1">
+                        <div className="small text-muted mt-1">
                           ({(CURRENCIES.find(c => c.code === compensationData.baseCurrency)?.symbol) || ''}{currentYearProjection?.rsuVestInBaseCurrency.toLocaleString()})
                         </div>
                         {expandedSummaryCard === 'rsu' && (
-                          <div className="mt-2 p-2 bg-white bg-opacity-10 rounded">
-                            <small className="text-light" style={{ whiteSpace: 'pre-line' }}>
+                          <div className="mt-2 p-2 bg-light rounded border">
+                            <small className="text-muted" style={{ whiteSpace: 'pre-line' }}>
                               {rsuVestingDetails || 'No RSU vesting this year'}
                             </small>
                           </div>
                         )}
                       </div>
                       <div className="col-md-3">
-                        <h6 className="text-light">Year</h6>
-                        <h5>{currentYearProjection?.year}</h5>
+                        <h6 className="text-muted">Year</h6>
+                        <h5 className="text-dark">{currentYearProjection?.year}</h5>
                       </div>
                     </div>
                   </div>
@@ -440,54 +421,42 @@ function App() {
           ) : null;
         })()}
 
-        {/* Read-Only Mode Alert */}
+        {/* Shared Data Banner */}
         {isReadOnlyMode && (
           <Row className="mb-3">
             <Col>
-              <Alert variant="info" className="d-flex justify-content-between align-items-center">
+              <Alert variant="warning" className="d-flex justify-content-between align-items-center mb-0">
                 <div>
-                  <i className="bi bi-eye me-2"></i>
-                  <strong>Viewing Shared Data</strong> - This is a read-only view. Your changes won't be saved.
+                  <i className="bi bi-share me-2"></i>
+                  <strong>Viewing Shared Data</strong> - Changes you make won't be saved to your local storage.
                 </div>
-                <Button variant="outline-primary" size="sm" onClick={enableEditMode}>
-                  <i className="bi bi-pencil me-1"></i>
-                  Enable Editing
-                </Button>
+                <div className="d-flex gap-2">
+                  <Button variant="outline-dark" size="sm" onClick={() => {
+                    const currentUrl = window.location.href;
+                    navigator.clipboard.writeText(currentUrl).then(() => {
+                      setShowCopyToast(true);
+                    }).catch(() => {
+                      setShowCopyToast(true);
+                    });
+                  }}>
+                    <i className="bi bi-clipboard me-1"></i>
+                    Copy URL
+                  </Button>
+                  <Button variant="outline-danger" size="sm" onClick={() => {
+                    // Clear URL params and reload with local data
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    window.location.reload();
+                  }}>
+                    <i className="bi bi-x-circle me-1"></i>
+                    Exit Shared Mode
+                  </Button>
+                </div>
               </Alert>
             </Col>
           </Row>
         )}
 
-        {/* Edit Warning Modal */}
-        <Modal show={showEditWarning} onHide={() => setShowEditWarning(false)} centered>
-          <Modal.Header closeButton>
-            <Modal.Title>Enable Editing Mode?</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <p>You're currently viewing shared data in read-only mode.</p>
-            <p>To make changes, you need to enable editing mode. This will:</p>
-            <ul>
-              <li>Overwrite your locally saved data with this shared data</li>
-              <li>Allow you to make modifications</li>
-              <li>Save your changes locally going forward</li>
-            </ul>
-            <p><strong>Continue?</strong></p>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                console.log('Stay Read-Only clicked');
-                setShowEditWarning(false);
-              }}
-            >
-              Stay Read-Only
-            </Button>
-            <Button variant="primary" onClick={enableEditMode}>
-              Enable Editing
-            </Button>
-          </Modal.Footer>
-        </Modal>
+
 
         {/* Share Modal */}
         <Modal show={showShareModal} onHide={() => setShowShareModal(false)} centered size="lg">
@@ -721,11 +690,30 @@ function App() {
           <Col>
             <hr />
             <p className="text-center text-muted small">
-              Total Compensation Calculator - Your data is stored locally in your browser
+              Tech Company Total Compensation Calculator - Your data is stored locally in your browser
             </p>
           </Col>
         </Row>
       </Container>
+
+      {/* Toast Notifications */}
+      <ToastContainer position="top-end" className="p-3">
+        <Toast
+          show={showCopyToast}
+          onClose={() => setShowCopyToast(false)}
+          delay={3000}
+          autohide
+          bg="success"
+        >
+          <Toast.Header>
+            <i className="bi bi-check-circle-fill text-success me-2"></i>
+            <strong className="me-auto">Success</strong>
+          </Toast.Header>
+          <Toast.Body className="text-white">
+            Share URL copied to clipboard!
+          </Toast.Body>
+        </Toast>
+      </ToastContainer>
     </div>
   );
 }
