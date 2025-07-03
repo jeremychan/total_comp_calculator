@@ -454,9 +454,15 @@ function App() {
     setAuthLoading(true);
     try {
       const result = await signInWithGoogle();
-      console.log('Sign in successful:', result?.email, result?.uid);
-      setToastMessage('Successfully signed in! Your data is now syncing across devices.');
-      setShowCopyToast(true);
+      if (result) {
+        console.log('Sign in successful:', result.email, result.uid);
+        setToastMessage('Successfully signed in! Your data is now syncing across devices.');
+        setShowCopyToast(true);
+      } else {
+        console.log('Sign in was cancelled or failed');
+        setToastMessage('Sign in was cancelled or failed. Please try again.');
+        setShowCopyToast(true);
+      }
     } catch (error) {
       console.error('Sign in error:', error);
       setToastMessage('Sign in failed. Please try again.');
