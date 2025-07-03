@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Form, InputGroup, Button, Spinner, Alert } from 'react-bootstrap';
 import { CURRENCIES } from '../types';
 import { stockPriceService, StockPrice } from '../services/stockPriceService';
+import { useDebouncedCallback } from '../hooks/useDebounce';
 
 interface StockPriceInputProps {
     value: number;
@@ -18,6 +19,9 @@ const StockPriceInput: React.FC<StockPriceInputProps> = ({ value, currency, comp
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [inputValue, setInputValue] = useState(value.toString());
+
+    // Debounce the onChange callback to avoid excessive updates while typing
+    const debouncedOnChange = useDebouncedCallback(onChange, 500);
 
     // Map company names to stock symbols
     const getStockSymbol = (companyName: string): string => {
@@ -96,7 +100,8 @@ const StockPriceInput: React.FC<StockPriceInputProps> = ({ value, currency, comp
 
         const numValue = parseFloat(newValue);
         if (!isNaN(numValue) && numValue >= 0) {
-            onChange(numValue);
+            // Use debounced callback to avoid triggering expensive recalculations on every keystroke
+            debouncedOnChange(numValue);
         }
 
         setStockData(null); // Clear fetched data when manually edited

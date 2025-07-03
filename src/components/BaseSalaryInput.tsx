@@ -1,6 +1,7 @@
 import React from 'react';
 import { Form, InputGroup } from 'react-bootstrap';
 import { CURRENCIES } from '../types';
+import { useDebouncedCallback } from '../hooks/useDebounce';
 
 interface BaseSalaryInputProps {
     value: number;
@@ -12,9 +13,13 @@ const BaseSalaryInput: React.FC<BaseSalaryInputProps> = ({ value, currency, onCh
     const currencyInfo = CURRENCIES.find(c => c.code === currency);
     const symbol = currencyInfo?.symbol || currency;
 
+    // Debounce the onChange callback to avoid excessive updates while typing
+    const debouncedOnChange = useDebouncedCallback(onChange, 500);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const numValue = parseFloat(e.target.value) || 0;
-        onChange(numValue);
+        // Use debounced callback to avoid triggering expensive recalculations on every keystroke
+        debouncedOnChange(numValue);
     };
 
     const formatNumber = (num: number): string => {
