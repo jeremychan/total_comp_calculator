@@ -1,0 +1,17 @@
+{
+  "files": {
+    "main.css": "/total_comp_calculator/static/css/main.cef23dc3.css",
+    "main.js": "/total_comp_calculator/static/js/main.9c875ad6.js",
+    "static/js/453.40ae8f8b.chunk.js": "/total_comp_calculator/static/js/453.40ae8f8b.chunk.js",
+    "static/media/bootstrap-icons.woff?": "/total_comp_calculator/static/media/bootstrap-icons.1295669cd4e305c97f2c.woff",
+    "static/media/bootstrap-icons.woff2?": "/total_comp_calculator/static/media/bootstrap-icons.92ea18a81d737146ff04.woff2",
+    "index.html": "/total_comp_calculator/index.html",
+    "main.cef23dc3.css.map": "/total_comp_calculator/static/css/main.cef23dc3.css.map",
+    "main.9c875ad6.js.map": "/total_comp_calculator/static/js/main.9c875ad6.js.map",
+    "453.40ae8f8b.chunk.js.map": "/total_comp_calculator/static/js/453.40ae8f8b.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.cef23dc3.css",
+    "static/js/main.9c875ad6.js"
+  ]
+}
