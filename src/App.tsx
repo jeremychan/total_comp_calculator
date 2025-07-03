@@ -144,15 +144,19 @@ function App() {
 
   // Authentication state listener
   useEffect(() => {
+    console.log('Setting up auth state listener...');
     const unsubscribe = onAuthStateChange(async (user) => {
+      console.log('Auth state changed:', user ? `Signed in as ${user.email}` : 'Signed out');
       setUser(user);
       setAuthLoading(false);
 
       if (user) {
         // User signed in - merge local and cloud data
         try {
+          console.log('Merging data for signed in user...');
           const mergedData = await mergeDataOnSignIn(user);
           if (mergedData) {
+            console.log('Setting merged data from Firebase');
             setCompensationData(mergedData);
           }
         } catch (error) {
@@ -164,23 +168,6 @@ function App() {
 
     return () => unsubscribe();
   }, []);
-
-  // Sync to Firebase when data changes (only if authenticated)
-  useEffect(() => {
-    if (user && !isReadOnlyMode) {
-      const syncData = async () => {
-        try {
-          await syncToFirestore(user, compensationData);
-        } catch (error) {
-          console.error('Error syncing to Firebase:', error);
-        }
-      };
-
-      // Debounce sync to avoid too many writes
-      const timeoutId = setTimeout(syncData, 1000);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [user, compensationData, isReadOnlyMode]);
 
   // Save to localStorage whenever data changes (but not when viewing shared data)
   useEffect(() => {
@@ -208,6 +195,25 @@ function App() {
     };
     return JSON.stringify(data);
   }, [compensationData]);
+
+  // Sync to Firebase when data changes (only if authenticated)
+  useEffect(() => {
+    if (user && !isReadOnlyMode) {
+      const syncData = async () => {
+        try {
+          console.log('Syncing data to Firebase for user:', user.email);
+          await syncToFirestore(user, compensationData);
+          console.log('Data synced successfully to Firebase');
+        } catch (error) {
+          console.error('Error syncing to Firebase:', error);
+        }
+      };
+
+      // Debounce sync to avoid too many writes
+      const timeoutId = setTimeout(syncData, 1000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [user, dataHash, isReadOnlyMode]); // Use stable dataHash instead of compensationData
 
   // Recalculate projections when data changes
   useEffect(() => {
@@ -446,7 +452,8 @@ function App() {
   const handleSignIn = async () => {
     setAuthLoading(true);
     try {
-      await signInWithGoogle();
+      const result = await signInWithGoogle();
+      console.log('Sign in successful:', result?.email, result?.uid);
       setToastMessage('Successfully signed in! Your data is now syncing across devices.');
       setShowCopyToast(true);
     } catch (error) {

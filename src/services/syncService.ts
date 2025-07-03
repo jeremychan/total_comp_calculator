@@ -24,9 +24,13 @@ export const setLocalData = (data: CompensationData): void => {
 };
 
 export const syncToFirestore = async (user: User, data: CompensationData): Promise<void> => {
-    if (!user) return;
+    if (!user) {
+        console.log('No user provided to syncToFirestore');
+        return;
+    }
 
     try {
+        console.log('Starting Firestore sync for user:', user.uid);
         const userDocRef = doc(db, 'userData', user.uid);
 
         // Convert Date objects to strings for Firestore
@@ -40,9 +44,12 @@ export const syncToFirestore = async (user: User, data: CompensationData): Promi
             userId: user.uid
         };
 
+        console.log('Writing to Firestore document:', userDocRef.path);
         await setDoc(userDocRef, firestoreData);
+        console.log('Firestore write successful');
     } catch (error) {
         console.error('Error syncing to Firestore:', error);
+        throw error; // Re-throw to see the error in the calling code
     }
 };
 

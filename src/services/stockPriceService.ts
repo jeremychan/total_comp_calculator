@@ -52,7 +52,7 @@ class StockPriceService {
             }
 
             // Load from local file - adjust path for development vs production
-            const basePath = process.env.NODE_ENV === 'development' ? '' : (process.env.PUBLIC_URL || '');
+            const basePath = process.env.PUBLIC_URL || '';
             const fetchUrl = `${basePath}/data/${symbol}.json`;
 
             console.log(`Fetching stock data from: ${fetchUrl}`);
