@@ -213,7 +213,8 @@ function App() {
       const timeoutId = setTimeout(syncData, 1000);
       return () => clearTimeout(timeoutId);
     }
-  }, [user, dataHash, isReadOnlyMode]); // Use stable dataHash instead of compensationData
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, dataHash, isReadOnlyMode]); // Use stable dataHash instead of compensationData to prevent infinite loops
 
   // Recalculate projections when data changes
   useEffect(() => {
@@ -512,14 +513,14 @@ function App() {
               <Col>
                 <div className="card border-0 shadow-sm" style={{ background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)' }}>
                   <div className="card-body py-3">
-                    <div className="position-relative mb-3">
-                      <div className="text-center">
+                    <div className="summary-header position-relative mb-3">
+                      <div className="summary-title text-center">
                         <h5 className="mb-0 text-dark">
                           <i className="bi bi-trophy me-2 text-warning"></i>
                           Total Compensation {currentYearProjection?.year}
                         </h5>
                       </div>
-                      <div className="position-absolute top-0 end-0 d-flex gap-2 align-items-center">
+                      <div className="summary-actions position-absolute top-0 end-0 d-flex gap-2 align-items-center">
                         <AuthButton
                           user={user}
                           loading={authLoading}
